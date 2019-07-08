@@ -6,7 +6,7 @@ import (
 	"log"
 	"path"
 
-	"github.com/jung-kurt/gofpdf"
+	"github.com/jung-kurt/gofpdf/v2"
 	"github.com/phpdave11/gofpdi"
 	rscpdf "rsc.io/pdf"
 )
