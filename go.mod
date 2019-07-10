@@ -3,9 +3,6 @@ module github.com/innermond/cobai/pdf
 go 1.12
 
 require (
-	github.com/jung-kurt/gofpdf/v2 v2.0.0-00010101000000-000000000000
-	github.com/phpdave11/gofpdi v1.0.3
-	rsc.io/pdf v0.1.1
+	github.com/unidoc/unipdf/v3 v3.0.3
+	golang.org/x/image v0.0.0-20190507092727-e4e5bf290fec // indirect
 )
-
-replace github.com/jung-kurt/gofpdf/v2 => ../../gofpdf

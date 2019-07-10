@@ -3,12 +3,14 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"path"
 
-	"github.com/jung-kurt/gofpdf/v2"
-	"github.com/phpdave11/gofpdi"
-	rscpdf "rsc.io/pdf"
+	"github.com/unidoc/unipdf/v3/core"
+	"github.com/unidoc/unipdf/v3/creator"
+	pdf "github.com/unidoc/unipdf/v3/model"
 )
 
 var (
@@ -55,6 +57,18 @@ func param() error {
 			centerx = true
 		case "centery":
 			centery = true
+		case "left":
+			left *= creator.PPMM
+		case "right":
+			right *= creator.PPMM
+		case "top":
+			top *= creator.PPMM
+		case "bottom":
+			bottom *= creator.PPMM
+		case "width":
+			width *= creator.PPMM
+		case "height":
+			height *= creator.PPMM
 		}
 	})
 
@@ -62,47 +76,60 @@ func param() error {
 }
 
 func main() {
+
 	err := param()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// set default page media
-	media := gofpdf.SizeType{width, height}
-	pdf := gofpdf.NewCustom(&gofpdf.InitType{UnitStr: unit, Size: media})
-
-	pdf.SetCompression(false)
-
-	// Margins of page
-	pdf.SetMargins(left, top, right)
-	pdf.SetAutoPageBreak(false, bottom)
-
-	// get num pages and box size
-	rf, err := rscpdf.Open(fn)
+	// Read the input pdf file.
+	f, err := os.Open(fn)
 	if err != nil {
 		log.Fatal(err)
 	}
-	np := rf.NumPage()
+	defer f.Close()
+
+	pdfReader, err := pdf.NewPdfReader(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	np, err := pdfReader.GetNumPages()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if lessPagesNum > 0 && lessPagesNum < np {
 		np = lessPagesNum
 	}
 
-	_, _, w, h, boxname, err := pageBox(rf, 1, "BleedBox", pdf.GetConversionRatio())
+	// set default page media
+	c := creator.New()
+	media := creator.PageSize{width, height}
+	c.SetPageSize(media)
+
+	// Margins of page
+	c.SetPageMargins(left, right, top, bottom)
+
+	page, err := pdfReader.GetPage(1)
 	if err != nil {
 		log.Fatal(err)
 	}
+	bbox, err := page.GetMediaBox()
+	//bbox, err := GetBleedBox(page)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w := bbox.Urx - bbox.Llx
+	h := bbox.Ury - bbox.Lly
 
-	pdf.AddPage()
-
-	var fpdi = gofpdi.NewImporter()
-	fpdi.SetSourceFile(fn)
+	c.NewPage()
 
 	var xpos, ypos, endx, endy float64
 
-	left, top, right, bottom := pdf.GetMargins()
 	if centerx {
 		wpages := w
-		available := media.Wd - (left + right)
+		available := media[0] - (left + right)
 		for wpages < available {
 			wpages += w
 		}
@@ -112,7 +139,7 @@ func main() {
 	}
 	if centery {
 		hpages := h
-		available := media.Ht - (top + bottom)
+		available := media[1] - (top + bottom)
 		for hpages < available {
 			hpages += h
 		}
@@ -127,58 +154,70 @@ func main() {
 		num := i + 1
 
 		endx = xpos + float64(w)
-		if endx > media.Wd-right {
+		if endx > media[0]-right {
 			ypos += float64(h)
 			xpos = left
 			endx = xpos + float64(w)
 			endy = ypos + float64(h)
-			if endy > media.Ht-bottom {
+			if endy > media[1]-bottom {
 				ypos = top
 				endy = ypos + float64(h)
-				pdf.AddPage()
+				c.NewPage()
 			}
 		}
-		importPage(pdf, fpdi, boxname, num, xpos, ypos, w, 0.0)
-		xpos = endx
-	}
+		pg, err := pdfReader.GetPage(num)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bk, err := creator.NewBlockFromPage(pg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		p := c.NewParagraph(fmt.Sprintf("page %d", num))
+		p.SetPos(bk.Width()*0.5, bk.Height()*0.5)
+		bk.Draw(p)
+		bk.SetPos(xpos, ypos)
+		_ = c.Draw(bk)
 
-	err = pdf.OutputFileAndClose(fout)
+		xpos = endx
+		fmt.Println(num)
+	}
+	err = c.WriteToFile(fout)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func importPage(pdf *gofpdf.Fpdf, fpdi *gofpdi.Importer, boxname string, num int, xpos, ypos, w, h float64) {
-	tplid := fpdi.ImportPage(num, "/"+boxname)
-	// import template to page
-	tplObjIDs := fpdi.PutFormXobjectsUnordered()
-	pdf.ImportTemplates(tplObjIDs)
-	imported := fpdi.GetImportedObjectsUnordered()
-	pdf.ImportObjects(imported)
-	importedObjPos := fpdi.GetImportedObjHashPos()
-	pdf.ImportObjPos(importedObjPos)
-
-	tplName, sx, sy, tx, ty := fpdi.UseTemplate(tplid, xpos, ypos, w, 0.0)
-	pdf.UseImportedTemplate(tplName, sx, sy, tx, ty)
-}
-
-func pageBox(rf *rscpdf.Reader, inx int, tryboxname string, k float64) (x float64, y float64, w float64, h float64, boxname string, err error) {
-	p := rf.Page(inx)
-	boxname = tryboxname
-	mediabox := p.V.Key(boxname)
-	if mediabox.Len() == 0 {
-		boxname = "MediaBox"
-		mediabox = p.V.Key(boxname)
-		if mediabox.Len() != 4 {
-			err = errors.New("wrong box lenght")
-			return
-		}
+// GetBleedBox gets the inheritable media box value, either from the page
+// or a higher up page/pages struct.
+func GetBleedBox(p *pdf.PdfPage) (*pdf.PdfRectangle, error) {
+	if p.BleedBox != nil {
+		return p.BleedBox, nil
 	}
 
-	x = mediabox.Index(0).Float64() / k
-	y = mediabox.Index(1).Float64() / k
-	w = mediabox.Index(2).Float64() / k
-	h = mediabox.Index(3).Float64() / k
+	node := p.Parent
+	for node != nil {
+		dict, ok := core.GetDict(node)
+		if !ok {
+			return nil, errors.New("invalid parent objects dictionary")
+		}
 
-	return
+		if obj := dict.Get("BleedBox"); obj != nil {
+			arr, ok := obj.(*core.PdfObjectArray)
+			if !ok {
+				return nil, errors.New("invalid media box")
+			}
+			rect, err := pdf.NewPdfRectangle(*arr)
+
+			if err != nil {
+				return nil, err
+			}
+
+			return rect, nil
+		}
+
+		node = dict.Get("Parent")
+	}
+
+	return nil, errors.New("bleed box not defined")
 }
