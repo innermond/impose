@@ -25,6 +25,7 @@ var (
 	centerx, centery         bool
 	lessPagesNum             int
 	grid                     string
+	flow                     string
 )
 
 func param() error {
@@ -43,6 +44,7 @@ func param() error {
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
 	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
+	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, normali they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 
 	flag.Parse()
 
@@ -186,6 +188,7 @@ func main() {
 			fmt.Println(num)
 		}
 	} else {
+		// parse grid
 		colrow := strings.Split(grid, "x")
 		if len(colrow) != 2 {
 			log.Fatal(errors.New("grid length invalid"))
@@ -199,42 +202,60 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		var nextRow, nextPage bool
-		var maxOnPage = col * row
-		var stepx int
-		for i := 0; i < np; i++ {
-			num := i + 1
-			stepx = (col + i) % col
-			xpos += float64(stepx) * float64(w)
-			if i >= col {
-				nextRow = stepx == 0
+		// parse flow
+		var ff []int
+		if flow != "" {
+			ff, err = getFlowAsInts(strings.Split(flow, ","), col)
+			if err != nil {
+				log.Fatal(err)
 			}
-			if nextRow {
+			if len(ff) != col {
+				log.Fatal(fmt.Errorf("flow should be equal with %d", col))
+			}
+		} else {
+			for i := 1; i <= col; i++ {
+				ff = append(ff, i)
+			}
+		}
+
+		var nextPage bool
+		var maxOnPage = col * row
+		var i, j int
+	grid:
+		for {
+			for y := 0; y < row; y++ {
+				for x := 0; x < len(ff); x++ {
+					if i >= np {
+						break grid
+					}
+					num := ff[x] + j*col
+					if i >= maxOnPage {
+						nextPage = (maxOnPage+i)%maxOnPage == 0
+					}
+					if nextPage {
+						ypos = top
+						c.NewPage()
+						nextPage = false
+					}
+					i++
+					pg, err := pdfReader.GetPage(num)
+					if err != nil {
+						log.Fatal(err)
+					}
+					bk, err := creator.NewBlockFromPage(pg)
+					if err != nil {
+						log.Fatal(err)
+					}
+					bk.SetPos(xpos, ypos)
+					_ = c.Draw(bk)
+
+					xpos += float64(w)
+					fmt.Println(num)
+				}
 				ypos += float64(h)
 				xpos = left
-				nextRow = false
+				j++
 			}
-			if i >= maxOnPage {
-				nextPage = (maxOnPage+i)%maxOnPage == 0
-			}
-			if nextPage {
-				ypos = top
-				c.NewPage()
-				nextPage = false
-			}
-			pg, err := pdfReader.GetPage(num)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bk, err := creator.NewBlockFromPage(pg)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bk.SetPos(xpos, ypos)
-			_ = c.Draw(bk)
-
-			fmt.Println(num)
 		}
 	}
 	err = c.WriteToFile(fout)
@@ -292,4 +313,27 @@ func GetBox(p *pdf.PdfPage, boxname string) (box *pdf.PdfRectangle, err error) {
 	}
 
 	return nil, fmt.Errorf("box %s not defined", boxname)
+}
+
+func getFlowAsInts(ss []string, max int) (list []int, err error) {
+	keys := make(map[int]bool)
+	var (
+		i int
+		e string
+	)
+	for _, e = range ss {
+		i, err = strconv.Atoi(e)
+		if err != nil {
+			return
+		}
+		if i > max {
+			err = fmt.Errorf("max flow is %d element %d unacceptable", max, i)
+			return
+		}
+		if _, ok := keys[i]; !ok {
+			keys[i] = true
+			list = append(list, i)
+		}
+	}
+	return
 }
