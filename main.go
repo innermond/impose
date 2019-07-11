@@ -115,8 +115,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bbox, err := page.GetMediaBox()
-	//bbox, err := GetBleedBox(page)
+	//bbox, err := page.GetMediaBox()
+	bbox, err := GetBox(page, "MediaBox")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -188,11 +188,28 @@ func main() {
 	}
 }
 
-// GetBleedBox gets the inheritable media box value, either from the page
+// GetBox gets the inheritable media box value, either from the page
 // or a higher up page/pages struct.
-func GetBleedBox(p *pdf.PdfPage) (*pdf.PdfRectangle, error) {
-	if p.BleedBox != nil {
-		return p.BleedBox, nil
+func GetBox(p *pdf.PdfPage, boxname string) (box *pdf.PdfRectangle, err error) {
+
+	switch boxname {
+	case "MediaBox":
+		box = p.MediaBox
+	case "BleedBox":
+		box = p.BleedBox
+	case "TrimBox":
+		box = p.TrimBox
+	case "CropBox":
+		box = p.CropBox
+	case "ArtBox":
+		box = p.ArtBox
+	default:
+		err = fmt.Errorf("invalid box name %s", boxname)
+		return
+	}
+
+	if box != nil {
+		return box, nil
 	}
 
 	node := p.Parent
@@ -202,7 +219,7 @@ func GetBleedBox(p *pdf.PdfPage) (*pdf.PdfRectangle, error) {
 			return nil, errors.New("invalid parent objects dictionary")
 		}
 
-		if obj := dict.Get("BleedBox"); obj != nil {
+		if obj := dict.Get(core.PdfObjectName(boxname)); obj != nil {
 			arr, ok := obj.(*core.PdfObjectArray)
 			if !ok {
 				return nil, errors.New("invalid media box")
@@ -216,8 +233,8 @@ func GetBleedBox(p *pdf.PdfPage) (*pdf.PdfRectangle, error) {
 			return rect, nil
 		}
 
-		node = dict.Get("Parent")
+		node = dict.Get(core.PdfObjectName("Parent"))
 	}
 
-	return nil, errors.New("bleed box not defined")
+	return nil, fmt.Errorf("box %s not defined", boxname)
 }
