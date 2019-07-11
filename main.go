@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 
 	"github.com/unidoc/unipdf/v3/core"
 	"github.com/unidoc/unipdf/v3/creator"
@@ -22,6 +24,7 @@ var (
 	top, left, bottom, right float64
 	centerx, centery         bool
 	lessPagesNum             int
+	grid                     string
 )
 
 func param() error {
@@ -39,6 +42,7 @@ func param() error {
 	flag.BoolVar(&centerx, "centerx", false, "center along sheet width")
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
 	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
+	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 
 	flag.Parse()
 
@@ -150,37 +154,88 @@ func main() {
 
 	xpos = left
 	ypos = top
-	for i := 0; i < np; i++ {
-		num := i + 1
+	// natural flow
+	if grid == "" {
+		for i := 0; i < np; i++ {
+			num := i + 1
 
-		endx = xpos + float64(w)
-		if endx > media[0]-right {
-			ypos += float64(h)
-			xpos = left
 			endx = xpos + float64(w)
-			endy = ypos + float64(h)
-			if endy > media[1]-bottom {
-				ypos = top
+			if endx > media[0]-right {
+				ypos += float64(h)
+				xpos = left
+				endx = xpos + float64(w)
 				endy = ypos + float64(h)
-				c.NewPage()
+				if endy > media[1]-bottom {
+					ypos = top
+					endy = ypos + float64(h)
+					c.NewPage()
+				}
 			}
-		}
-		pg, err := pdfReader.GetPage(num)
-		if err != nil {
-			log.Fatal(err)
-		}
-		bk, err := creator.NewBlockFromPage(pg)
-		if err != nil {
-			log.Fatal(err)
-		}
-		p := c.NewParagraph(fmt.Sprintf("page %d", num))
-		p.SetPos(bk.Width()*0.5, bk.Height()*0.5)
-		bk.Draw(p)
-		bk.SetPos(xpos, ypos)
-		_ = c.Draw(bk)
+			pg, err := pdfReader.GetPage(num)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bk, err := creator.NewBlockFromPage(pg)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bk.SetPos(xpos, ypos)
+			_ = c.Draw(bk)
 
-		xpos = endx
-		fmt.Println(num)
+			xpos = endx
+			fmt.Println(num)
+		}
+	} else {
+		colrow := strings.Split(grid, "x")
+		if len(colrow) != 2 {
+			log.Fatal(errors.New("grid length invalid"))
+		}
+
+		col, err := strconv.Atoi(colrow[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		row, err := strconv.Atoi(colrow[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var nextRow, nextPage bool
+		var maxOnPage = col * row
+		var stepx int
+		for i := 0; i < np; i++ {
+			num := i + 1
+			stepx = (col + i) % col
+			xpos += float64(stepx) * float64(w)
+			if i >= col {
+				nextRow = stepx == 0
+			}
+			if nextRow {
+				ypos += float64(h)
+				xpos = left
+				nextRow = false
+			}
+			if i >= maxOnPage {
+				nextPage = (maxOnPage+i)%maxOnPage == 0
+			}
+			if nextPage {
+				ypos = top
+				c.NewPage()
+				nextPage = false
+			}
+			pg, err := pdfReader.GetPage(num)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bk, err := creator.NewBlockFromPage(pg)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bk.SetPos(xpos, ypos)
+			_ = c.Draw(bk)
+
+			fmt.Println(num)
+		}
 	}
 	err = c.WriteToFile(fout)
 	if err != nil {
