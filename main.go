@@ -122,7 +122,8 @@ func main() {
 		log.Fatal(err)
 	}
 	//bbox, err := page.GetMediaBox()
-	bbox, err := GetBox(page, "MediaBox")
+	//bbox, err := GetBox(page, "BleedBox")
+	bbox, err := page.GetBox("MediaBox")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -177,7 +178,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			bk, err := creator.NewBlockFromPage(pg)
+			bk, err := creator.NewBlockFromPageBox(pg, bbox)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -242,7 +243,7 @@ func main() {
 					if err != nil {
 						log.Fatal(err)
 					}
-					bk, err := creator.NewBlockFromPage(pg)
+					bk, err := creator.NewBlockFromPageBox(pg, bbox)
 					if err != nil {
 						log.Fatal(err)
 					}
