@@ -27,6 +27,7 @@ var (
 	lessPagesNum             int
 	grid                     string
 	flow                     string
+	angle                    float64
 )
 
 func param() error {
@@ -46,6 +47,7 @@ func param() error {
 	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, normali they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
+	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
 
 	flag.Parse()
 
@@ -124,6 +126,10 @@ func main() {
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
+	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
+		w, h = h, w
+	}
+
 	c.NewPage()
 
 	var xpos, ypos, endx, endy, peakx, peaky float64
@@ -149,6 +155,20 @@ func main() {
 		bottom = top
 	}
 
+	if angle == -90.0 || angle == 270 {
+		left += w
+		right -= w
+	}
+	if angle == 90.0 || angle == -270 {
+		top += h
+		bottom -= h
+	}
+	if angle == -180 || angle == 180 {
+		left += w
+		right -= w
+		top += h
+		bottom -= h
+	}
 	xpos = left
 	ypos = top
 	// natural flow
@@ -159,11 +179,13 @@ func main() {
 			endx = floor63(xpos + float64(w))
 			peakx = floor63(media[0] - right)
 			if endx > peakx {
+				fmt.Println("new row")
 				xpos = left
 				ypos += float64(h)
 				endy = floor63(ypos + float64(h))
 				peaky = floor63(media[1] - bottom)
 				if endy > peaky {
+					fmt.Println("new page")
 					ypos = top
 					xpos = left
 					c.NewPage()
@@ -177,9 +199,13 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
+			if angle != 0.0 {
+				bk.SetAngle(angle)
+			}
 			bk.SetPos(xpos, ypos)
 			_ = c.Draw(bk)
 
+			fmt.Println(num, xpos, ypos)
 			xpos += float64(w)
 			fmt.Print("\033[H\033[2J")
 			fmt.Print(num)
@@ -226,6 +252,9 @@ func main() {
 						break grid
 					}
 					num := ff[x] + j*col
+					if num > np {
+						continue
+					}
 					if i >= maxOnPage {
 						nextPage = (maxOnPage+i)%maxOnPage == 0
 					}
@@ -243,11 +272,15 @@ func main() {
 					if err != nil {
 						log.Fatal(err)
 					}
+					if angle != 0.0 {
+						bk.SetAngle(angle)
+					}
 					bk.SetPos(xpos, ypos)
 					_ = c.Draw(bk)
 
 					xpos += float64(w)
-					fmt.Println(num)
+					fmt.Print("\033[H\033[2J")
+					fmt.Print(num)
 				}
 				ypos += float64(h)
 				xpos = left
