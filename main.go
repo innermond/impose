@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -116,9 +117,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//bbox, err := page.GetMediaBox()
-	//bbox, err := GetBox(page, "BleedBox")
-	bbox, err := page.GetBox("MediaBox")
+	bbox, err := page.GetMediaBox()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,7 +126,7 @@ func main() {
 
 	c.NewPage()
 
-	var xpos, ypos, endx, endy float64
+	var xpos, ypos, endx, endy, peakx, peaky float64
 
 	if centerx {
 		wpages := w
@@ -141,33 +140,30 @@ func main() {
 	}
 	if centery {
 		hpages := h
-		fmt.Println(top, ":", bottom)
 		available := media[1] - (top + bottom)
-		lvl := 0
 		for hpages < available {
 			hpages += h
-			lvl++
 		}
 		hpages -= h
 		top = (height - hpages) * 0.5
 		bottom = top
-		fmt.Printf("lvl: %d hpages: %v h: %v top %v bottom %v height %v media[1] %v", lvl, hpages, h, top, bottom, height, media[1])
 	}
 
 	xpos = left
 	ypos = top
-	fmt.Println(xpos, ":", ypos)
 	// natural flow
 	if grid == "" {
 		for i := 0; i < np; i++ {
 			num := i + 1
 
-			endx = xpos + float64(w)
-			if endx > media[0]-right {
+			endx = floor63(xpos + float64(w))
+			peakx = floor63(media[0] - right)
+			if endx > peakx {
 				xpos = left
 				ypos += float64(h)
-				endy = ypos + float64(h)
-				if endy > media[1]-bottom {
+				endy = floor63(ypos + float64(h))
+				peaky = floor63(media[1] - bottom)
+				if endy > peaky {
 					ypos = top
 					xpos = left
 					c.NewPage()
@@ -185,7 +181,8 @@ func main() {
 			_ = c.Draw(bk)
 
 			xpos += float64(w)
-			fmt.Println(num)
+			fmt.Print("\033[H\033[2J")
+			fmt.Print(num)
 		}
 	} else {
 		// parse grid
@@ -242,7 +239,7 @@ func main() {
 					if err != nil {
 						log.Fatal(err)
 					}
-					bk, err := creator.NewBlockFromPageBox(pg, bbox)
+					bk, err := creator.NewBlockFromPage(pg)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -336,4 +333,14 @@ func getFlowAsInts(ss []string, max int) (list []int, err error) {
 		}
 	}
 	return
+}
+
+// round floor to floor
+func floor63(v float64, p ...int) float64 {
+	a := 2
+	if len(p) > 0 {
+		a = p[0]
+	}
+	n := math.Pow10(a)
+	return math.Floor(v*n) / n
 }
