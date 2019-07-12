@@ -1,4 +1,6 @@
 *.pdf
+*.sla
+*.sla.*
 *.json
 *.z
 *.map
