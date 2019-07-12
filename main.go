@@ -57,24 +57,19 @@ func param() error {
 		fout = fn[:len(fn)-len(ext)] + ".imposition" + ext
 	}
 
+	left *= creator.PPMM
+	right *= creator.PPMM
+	top *= creator.PPMM
+	bottom *= creator.PPMM
+	width *= creator.PPMM
+	height *= creator.PPMM
+
 	flag.Visit(func(f *flag.Flag) {
 		switch f.Name {
 		case "centerx":
 			centerx = true
 		case "centery":
 			centery = true
-		case "left":
-			left *= creator.PPMM
-		case "right":
-			right *= creator.PPMM
-		case "top":
-			top *= creator.PPMM
-		case "bottom":
-			bottom *= creator.PPMM
-		case "width":
-			width *= creator.PPMM
-		case "height":
-			height *= creator.PPMM
 		}
 	})
 
@@ -141,22 +136,27 @@ func main() {
 			wpages += w
 		}
 		wpages -= w
-		left = (available - wpages) * 0.5
+		left = (width - wpages) * 0.5
 		right = left
 	}
 	if centery {
 		hpages := h
+		fmt.Println(top, ":", bottom)
 		available := media[1] - (top + bottom)
+		lvl := 0
 		for hpages < available {
 			hpages += h
+			lvl++
 		}
 		hpages -= h
-		top = (available - hpages) * 0.5
+		top = (height - hpages) * 0.5
 		bottom = top
+		fmt.Printf("lvl: %d hpages: %v h: %v top %v bottom %v height %v media[1] %v", lvl, hpages, h, top, bottom, height, media[1])
 	}
 
 	xpos = left
 	ypos = top
+	fmt.Println(xpos, ":", ypos)
 	// natural flow
 	if grid == "" {
 		for i := 0; i < np; i++ {
@@ -164,13 +164,12 @@ func main() {
 
 			endx = xpos + float64(w)
 			if endx > media[0]-right {
-				ypos += float64(h)
 				xpos = left
-				endx = xpos + float64(w)
+				ypos += float64(h)
 				endy = ypos + float64(h)
 				if endy > media[1]-bottom {
 					ypos = top
-					endy = ypos + float64(h)
+					xpos = left
 					c.NewPage()
 				}
 			}
@@ -178,14 +177,14 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			bk, err := creator.NewBlockFromPageBox(pg, bbox)
+			bk, err := creator.NewBlockFromPage(pg)
 			if err != nil {
 				log.Fatal(err)
 			}
 			bk.SetPos(xpos, ypos)
 			_ = c.Draw(bk)
 
-			xpos = endx
+			xpos += float64(w)
 			fmt.Println(num)
 		}
 	} else {
