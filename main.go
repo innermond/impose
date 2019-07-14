@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/innermond/pange"
 	"github.com/unidoc/unipdf/v3/core"
 	"github.com/unidoc/unipdf/v3/creator"
 	pdf "github.com/unidoc/unipdf/v3/model"
@@ -25,6 +26,7 @@ var (
 	top, left, bottom, right float64
 	centerx, centery         bool
 	lessPagesNum             int
+	pages                    string
 	grid                     string
 	flow                     string
 	angle                    float64
@@ -45,8 +47,9 @@ func param() error {
 	flag.BoolVar(&centerx, "centerx", false, "center along sheet width")
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
 	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
+	flag.StringVar(&pages, "pages", "", "pages requested by imposition")
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
-	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, normali they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
+	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
 
 	flag.Parse()
@@ -105,6 +108,11 @@ func main() {
 
 	if lessPagesNum > 0 && lessPagesNum < np {
 		np = lessPagesNum
+	}
+
+	// from 1 to last
+	if pages == "" {
+		pages = fmt.Sprintf("1-%d", np)
 	}
 
 	// set default page media
@@ -171,44 +179,53 @@ func main() {
 	}
 	xpos = left
 	ypos = top
+	ppp, err := pange.Selection(pages).Split()
+	if err != nil {
+		log.Fatal(err)
+	}
 	// natural flow
 	if grid == "" {
-		for i := 0; i < np; i++ {
-			num := i + 1
-
-			endx = floor63(xpos + float64(w))
-			peakx = floor63(media[0] - right)
-			if endx > peakx {
-				fmt.Println("new row")
-				xpos = left
-				ypos += float64(h)
-				endy = floor63(ypos + float64(h))
-				peaky = floor63(media[1] - bottom)
-				if endy > peaky {
-					fmt.Println("new page")
-					ypos = top
-					xpos = left
-					c.NewPage()
+	natural:
+		for _, pp := range ppp {
+			for i := pp.A; i <= pp.Z; i++ {
+				num := i
+				if i > np {
+					break natural
 				}
-			}
-			pg, err := pdfReader.GetPage(num)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bk, err := creator.NewBlockFromPage(pg)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if angle != 0.0 {
-				bk.SetAngle(angle)
-			}
-			bk.SetPos(xpos, ypos)
-			_ = c.Draw(bk)
+				endx = floor63(xpos + float64(w))
+				peakx = floor63(media[0] - right)
+				if endx > peakx {
+					//fmt.Println("new row")
+					xpos = left
+					ypos += float64(h)
+					endy = floor63(ypos + float64(h))
+					peaky = floor63(media[1] - bottom)
+					if endy > peaky {
+						//fmt.Println("new page")
+						ypos = top
+						xpos = left
+						c.NewPage()
+					}
+				}
+				pg, err := pdfReader.GetPage(num)
+				if err != nil {
+					log.Fatal(err)
+				}
+				bk, err := creator.NewBlockFromPage(pg)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if angle != 0.0 {
+					bk.SetAngle(angle)
+				}
+				bk.SetPos(xpos, ypos)
+				_ = c.Draw(bk)
 
-			fmt.Println(num, xpos, ypos)
-			xpos += float64(w)
-			fmt.Print("\033[H\033[2J")
-			fmt.Print(num)
+				//	fmt.Println(num, xpos, ypos)
+				xpos += float64(w)
+				fmt.Print("\033[H\033[2J")
+				fmt.Print(num)
+			}
 		}
 	} else {
 		// parse grid
@@ -244,6 +261,16 @@ func main() {
 		var nextPage bool
 		var maxOnPage = col * row
 		var i, j int
+
+		// explicit pages with gaps
+		var pxp []int
+		for _, pp := range ppp {
+			for p := pp.A; p <= pp.Z; p++ {
+				pxp = append(pxp, p)
+			}
+		}
+		np = len(pxp)
+		//fmt.Println(pxp)
 	grid:
 		for {
 			for y := 0; y < row; y++ {
@@ -255,6 +282,8 @@ func main() {
 					if num > np {
 						continue
 					}
+					num = pxp[num-1]
+					//			fmt.Println(num)
 					if i >= maxOnPage {
 						nextPage = (maxOnPage+i)%maxOnPage == 0
 					}
