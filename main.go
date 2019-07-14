@@ -270,6 +270,9 @@ func main() {
 			}
 		}
 		np = len(pxp)
+		if lessPagesNum > 0 && lessPagesNum < np {
+			np = lessPagesNum
+		}
 		//fmt.Println(pxp)
 	grid:
 		for {
