@@ -183,8 +183,30 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// create crossbox
+	crosx := 3 * creator.PPMM
+	crosy := 3 * creator.PPMM
+	delx := 2 * creator.PPMM
+	dely := 2 * creator.PPMM
+	delx -= crosx
+	dely -= crosy
+	crosh := 5 * creator.PPMM
+	crosw := 5 * creator.PPMM
+	oncex := false
+	oncey := false
+	crosb := creator.NewBlock(media[0], media[1])
+	crosb.SetPos(0.0, 0.0)
 	// natural flow
 	if grid == "" {
+		fmt.Println("new crosy")
+		l := c.NewLine(xpos-delx, ypos+crosy, xpos-delx-crosw, ypos+crosy)
+		l.SetLineWidth(1.5)
+		crosb.Draw(l)
+		endy = floor63(ypos + float64(h))
+		l = c.NewLine(xpos-delx, endy-crosy, xpos-delx-crosw, endy-crosy)
+		l.SetLineWidth(1.5)
+		crosb.Draw(l)
 	natural:
 		for _, pp := range ppp {
 			for i := pp.A; i <= pp.Z; i++ {
@@ -195,17 +217,42 @@ func main() {
 				endx = floor63(xpos + float64(w))
 				peakx = floor63(media[0] - right)
 				if endx > peakx {
-					//fmt.Println("new row")
+					fmt.Println("new row")
 					xpos = left
+					if oncey == false {
+						fmt.Println("new crosy")
+						l := c.NewLine(xpos-delx, ypos+crosy, xpos-delx-crosw, ypos+crosy)
+						l.SetLineWidth(1.5)
+						crosb.Draw(l)
+						l = c.NewLine(xpos-delx, endy-crosy, xpos-delx-crosw, endy-crosy)
+						l.SetLineWidth(1.5)
+						crosb.Draw(l)
+					}
 					ypos += float64(h)
 					endy = floor63(ypos + float64(h))
 					peaky = floor63(media[1] - bottom)
+					oncex = true
 					if endy > peaky {
-						//fmt.Println("new page")
+						c.Draw(crosb)
+						crosb.SetAngle(-180)
+						crosb.SetPos(1*media[0], 1*media[1])
+						c.Draw(crosb)
+						crosb.SetAngle(0)
+						crosb.SetPos(0.0, 0.0)
+						fmt.Println("new page")
 						ypos = top
 						xpos = left
 						c.NewPage()
+						oncey = true
 					}
+				} else if oncex == false {
+					fmt.Println("new crosx")
+					l := c.NewLine(xpos+crosx, ypos-dely, xpos+crosx, ypos-dely-crosh)
+					l.SetLineWidth(1.5)
+					crosb.Draw(l)
+					l = c.NewLine(endx-crosx, ypos-dely, endx-crosx, ypos-dely-crosh)
+					l.SetLineWidth(1.5)
+					crosb.Draw(l)
 				}
 				pg, err := pdfReader.GetPage(num)
 				if err != nil {
@@ -223,10 +270,17 @@ func main() {
 
 				//	fmt.Println(num, xpos, ypos)
 				xpos += float64(w)
-				fmt.Print("\033[H\033[2J")
-				fmt.Print(num)
+				//fmt.Print("\033[H\033[2J")
+				fmt.Println(num)
 			}
 		}
+		fmt.Println("last crosb")
+		c.Draw(crosb)
+		crosb.SetAngle(-180)
+		crosb.SetPos(1*media[0], 1*media[1])
+		c.Draw(crosb)
+		crosb.SetAngle(0)
+		crosb.SetPos(0.0, 0.0)
 	} else {
 		// parse grid
 		colrow := strings.Split(grid, "x")
@@ -274,6 +328,34 @@ func main() {
 			np = lessPagesNum
 		}
 		//fmt.Println(pxp)
+		// crosb
+		for y := 0; y < row; y++ {
+			for x := 0; x < col; x++ {
+				if y == 0 {
+					l := c.NewLine(left+float64(x)*w+crosx, top-dely, left+float64(x)*w+crosx, top-dely-crosh)
+					l.SetLineWidth(1.5)
+					crosb.Draw(l)
+					l = c.NewLine(left+float64(x+1)*w-crosx, top-dely, left+float64(x+1)*w-crosx, top-dely-crosh)
+					l.SetLineWidth(1.5)
+					crosb.Draw(l)
+				}
+			}
+			l := c.NewLine(left-delx, top+float64(y)*h+crosy, left-delx-crosw, top+float64(y)*h+crosy)
+			l.SetLineWidth(1.5)
+			crosb.Draw(l)
+			l = c.NewLine(left-delx, top+float64(y+1)*h-crosy, left-delx-crosw, top+float64(y+1)*h-crosy)
+			l.SetLineWidth(1.5)
+			crosb.Draw(l)
+		}
+		cros2b := creator.NewBlock(media[0], media[1])
+		cros2b.SetPos(0.0, 0.0)
+		cros2b.Draw(crosb)
+		crosb.SetAngle(-180)
+		crosb.SetPos(1*media[0], 1*media[1])
+		cros2b.Draw(crosb)
+		crosb.SetAngle(0)
+		crosb.SetPos(0.0, 0.0)
+
 	grid:
 		for {
 			for y := 0; y < row; y++ {
@@ -291,6 +373,7 @@ func main() {
 						nextPage = (maxOnPage+i)%maxOnPage == 0
 					}
 					if nextPage {
+						c.Draw(cros2b)
 						ypos = top
 						c.NewPage()
 						nextPage = false
@@ -311,14 +394,15 @@ func main() {
 					_ = c.Draw(bk)
 
 					xpos += float64(w)
-					fmt.Print("\033[H\033[2J")
-					fmt.Print(num)
+					//fmt.Print("\033[H\033[2J")
+					//fmt.Print(num)
 				}
 				ypos += float64(h)
 				xpos = left
 				j++
 			}
 		}
+		c.Draw(cros2b)
 	}
 	err = c.WriteToFile(fout)
 	if err != nil {
