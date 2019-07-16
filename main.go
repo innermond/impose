@@ -27,6 +27,8 @@ var (
 	center, centerx, centery bool
 	lessPagesNum             int
 	pages                    string
+	postfix                  string
+	samepage                 int
 	grid                     string
 	flow                     string
 	angle                    float64
@@ -52,6 +54,8 @@ func param() error {
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
 	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
 	flag.StringVar(&pages, "pages", "", "pages requested by imposition")
+	flag.StringVar(&postfix, "postfix", "imposition", "final page termination")
+	flag.IntVar(&samepage, "samepage", 0, "page chosen to repeat")
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
@@ -69,11 +73,6 @@ func param() error {
 
 	if fn == "" {
 		return errors.New("pdf file required")
-	}
-
-	if fout == "" {
-		ext := path.Ext(fn)
-		fout = fn[:len(fn)-len(ext)] + ".imposition" + ext
 	}
 
 	left *= creator.PPMM
@@ -110,8 +109,15 @@ func param() error {
 		case "bleed":
 			bleedx = bleed
 			bleedy = bleed
+		case "postfix":
+			postfix = fmt.Sprintf(".%s", strings.TrimSpace(strings.Trim(postfix, ".")))
 		}
 	})
+
+	if fout == "" {
+		ext := path.Ext(fn)
+		fout = fn[:len(fn)-len(ext)] + postfix + ext
+	}
 
 	offx -= bleedx
 	offy -= bleedy
@@ -238,8 +244,7 @@ func main() {
 				}
 			}
 		}
-		fmt.Printf("sugested grid %dx%d\n", col, row)
-		os.Exit(1)
+		log.Fatalf("sugested grid %dx%d\n", col, row)
 	}
 	// parse grid
 	colrow := strings.Split(grid, "x")
@@ -330,6 +335,11 @@ func main() {
 	crosb.SetAngle(0)
 	crosb.SetPos(0.0, 0.0)
 
+	var (
+		samepageDid bool
+		pg          *pdf.PdfPage
+		bk          *creator.Block
+	)
 grid:
 	for {
 		for y := 0; y < row; y++ {
@@ -353,14 +363,25 @@ grid:
 					nextPage = false
 				}
 				i++
-				pg, err := pdfReader.GetPage(num)
-				if err != nil {
-					log.Fatal(err)
+				if samepage > 0 {
+					num = samepage
 				}
-				bk, err := creator.NewBlockFromPage(pg)
-				if err != nil {
-					log.Fatal(err)
+				if samepageDid == false {
+					pg, err = pdfReader.GetPage(num)
+					if err != nil {
+						log.Fatal(err)
+					}
+					bk, err = creator.NewBlockFromPage(pg)
+					if err != nil {
+						log.Fatal(err)
+					}
+					fmt.Println(samepageDid, num)
 				}
+				if samepage > 0 {
+					samepageDid = true
+					fmt.Println(samepageDid, i)
+				}
+
 				xposx, yposy := xpos, ypos
 				if angle != 0.0 {
 					bk.SetAngle(angle)
