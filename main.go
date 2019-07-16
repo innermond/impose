@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/innermond/pange"
 	"github.com/unidoc/unipdf/v3/core"
@@ -109,10 +110,10 @@ func param() error {
 		case "bleed":
 			bleedx = bleed
 			bleedy = bleed
-		case "postfix":
-			postfix = fmt.Sprintf(".%s", strings.TrimSpace(strings.Trim(postfix, ".")))
 		}
 	})
+
+	postfix = fmt.Sprintf(".%s", strings.TrimSpace(strings.Trim(postfix, ".")))
 
 	if fout == "" {
 		ext := path.Ext(fn)
@@ -131,6 +132,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	start := time.Now()
 
 	// Read the input pdf file.
 	f, err := os.Open(fn)
@@ -336,9 +339,8 @@ func main() {
 	crosb.SetPos(0.0, 0.0)
 
 	var (
-		samepageDid bool
-		pg          *pdf.PdfPage
-		bk          *creator.Block
+		pg *pdf.PdfPage
+		bk *creator.Block
 	)
 grid:
 	for {
@@ -349,6 +351,7 @@ grid:
 				}
 				num := ff[x] + j*col
 				if num > np {
+					xpos += float64(w)
 					continue
 				}
 				num = pxp[num-1]
@@ -366,20 +369,14 @@ grid:
 				if samepage > 0 {
 					num = samepage
 				}
-				if samepageDid == false {
-					pg, err = pdfReader.GetPage(num)
-					if err != nil {
-						log.Fatal(err)
-					}
-					bk, err = creator.NewBlockFromPage(pg)
-					if err != nil {
-						log.Fatal(err)
-					}
-					fmt.Println(samepageDid, num)
+				//if true {
+				pg, err = pdfReader.GetPage(num)
+				if err != nil {
+					log.Fatal(err)
 				}
-				if samepage > 0 {
-					samepageDid = true
-					fmt.Println(samepageDid, i)
+				bk, err = creator.NewBlockFromPage(pg)
+				if err != nil {
+					log.Fatal(err)
 				}
 
 				xposx, yposy := xpos, ypos
@@ -407,12 +404,18 @@ grid:
 			xpos = left
 			j++
 		}
+		fmt.Print(".")
 	}
 	c.Draw(cros2b)
 	err = c.WriteToFile(fout)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	elapsed := time.Since(start)
+
+	log.Printf("time taken %v\n", elapsed)
+	log.Printf("file %s writteni\n", fout)
 }
 
 // GetBox gets the inheritable media box value, either from the page
