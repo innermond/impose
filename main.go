@@ -119,10 +119,10 @@ func main() {
 	c := creator.New()
 	media := creator.PageSize{width, height}
 	c.SetPageSize(media)
-
 	// Margins of page
 	c.SetPageMargins(left, right, top, bottom)
 
+	// assume all pages has the same dimensions as first one
 	page, err := pdfReader.GetPage(1)
 	if err != nil {
 		log.Fatal(err)
@@ -184,76 +184,151 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// create crossbox
-	crosx := 3 * creator.PPMM
-	crosy := 3 * creator.PPMM
+	// guess the grid
+	var col int
+	var row int = 1
+	if grid == "" {
+		var stopCountingCol bool
+	guessing_grid:
+		for _, pp := range ppp {
+			for i := pp.A; i <= pp.Z; i++ {
+				if i > np {
+					break guessing_grid
+				}
+				endx = floor63(xpos + float64(w))
+				peakx = floor63(media[0] - right)
+				if endx > peakx {
+					fmt.Println("new row")
+					stopCountingCol = true
+					xpos = left
+					ypos += float64(h)
+					endy = floor63(ypos + float64(h))
+					peaky = floor63(media[1] - bottom)
+					if endy > peaky {
+						break guessing_grid
+					}
+					row++
+				}
+				xpos += float64(w)
+				if !stopCountingCol {
+					col++
+				}
+			}
+		}
+		fmt.Printf("sugested grid %dx%d\n", col, row)
+		os.Exit(1)
+	}
+	// parse grid
+	colrow := strings.Split(grid, "x")
+	if len(colrow) != 2 {
+		log.Fatal(errors.New("grid length invalid"))
+	}
+
+	col, err = strconv.Atoi(colrow[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	row, err = strconv.Atoi(colrow[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	// parse flow
+	var ff []int
+	if flow != "" {
+		ff, err = getFlowAsInts(strings.Split(flow, ","), col)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(ff) != col {
+			log.Fatal(fmt.Errorf("number of flow elements should be equal with %d", col))
+		}
+	} else {
+		for i := 1; i <= col; i++ {
+			ff = append(ff, i)
+		}
+	}
+
+	var nextPage bool
+	var maxOnPage = col * row
+	var i, j int
+
+	// explicit pages with gaps
+	var pxp []int
+	for _, pp := range ppp {
+		for p := pp.A; p <= pp.Z; p++ {
+			pxp = append(pxp, p)
+		}
+	}
+	np = len(pxp)
+	if lessPagesNum > 0 && lessPagesNum < np {
+		np = lessPagesNum
+	}
+	//fmt.Println(pxp)
+	// crosb
+	crosx := 4 * creator.PPMM
+	crosy := 4 * creator.PPMM
 	delx := 2 * creator.PPMM
 	dely := 2 * creator.PPMM
 	delx -= crosx
 	dely -= crosy
 	crosh := 5 * creator.PPMM
 	crosw := 5 * creator.PPMM
-	oncex := false
-	oncey := false
-	crosb := creator.NewBlock(media[0], media[1])
+	cros2bw := left + float64(col)*w + right
+	cros2bh := top + float64(row)*h + bottom
+	crosb := creator.NewBlock(cros2bw, cros2bh)
 	crosb.SetPos(0.0, 0.0)
-	// natural flow
-	if grid == "" {
-		fmt.Println("new crosy")
-		l := c.NewLine(xpos-delx, ypos+crosy, xpos-delx-crosw, ypos+crosy)
-		l.SetLineWidth(1.5)
+	lw := 1 * creator.PPMM // points
+	// create crossbox
+	for y := 0; y < row; y++ {
+		for x := 0; x < col; x++ {
+			if y == 0 {
+				l := c.NewLine(left+float64(x)*w+crosx-0.5*lw, top-dely, left+float64(x)*w+crosx-0.5*lw, top-dely-crosh)
+				l.SetLineWidth(lw)
+				crosb.Draw(l)
+				l = c.NewLine(left+float64(x+1)*w-crosx-0.5*lw, top-dely, left+float64(x+1)*w-crosx-0.5*lw, top-dely-crosh)
+				l.SetLineWidth(lw)
+				crosb.Draw(l)
+			}
+		}
+		l := c.NewLine(left-delx, top+float64(y)*h+crosy+0.5*lw, left-delx-crosw, top+float64(y)*h+crosy+0.5*lw)
+		l.SetLineWidth(lw)
 		crosb.Draw(l)
-		endy = floor63(ypos + float64(h))
-		l = c.NewLine(xpos-delx, endy-crosy, xpos-delx-crosw, endy-crosy)
-		l.SetLineWidth(1.5)
+		l = c.NewLine(left-delx, top+float64(y+1)*h-crosy+0.5*lw, left-delx-crosw, top+float64(y+1)*h-crosy+0.5*lw)
+		l.SetLineWidth(lw)
 		crosb.Draw(l)
-	natural:
-		for _, pp := range ppp {
-			for i := pp.A; i <= pp.Z; i++ {
-				num := i
-				if i > np {
-					break natural
+	}
+	cros2b := creator.NewBlock(cros2bw, cros2bh)
+	cros2b.SetPos(0.0, 0.0)
+	cros2b.Draw(crosb)
+	crosb.SetAngle(-180)
+	crosb.SetPos(cros2bw-(right-left), cros2bh-(bottom-top))
+	cros2b.Draw(crosb)
+	crosb.SetAngle(0)
+	crosb.SetPos(0.0, 0.0)
+
+grid:
+	for {
+		for y := 0; y < row; y++ {
+			for x := 0; x < len(ff); x++ {
+				if i >= np {
+					break grid
 				}
-				endx = floor63(xpos + float64(w))
-				peakx = floor63(media[0] - right)
-				if endx > peakx {
-					fmt.Println("new row")
-					xpos = left
-					if oncey == false {
-						fmt.Println("new crosy")
-						l := c.NewLine(xpos-delx, ypos+crosy, xpos-delx-crosw, ypos+crosy)
-						l.SetLineWidth(1.5)
-						crosb.Draw(l)
-						l = c.NewLine(xpos-delx, endy-crosy, xpos-delx-crosw, endy-crosy)
-						l.SetLineWidth(1.5)
-						crosb.Draw(l)
-					}
-					ypos += float64(h)
-					endy = floor63(ypos + float64(h))
-					peaky = floor63(media[1] - bottom)
-					oncex = true
-					if endy > peaky {
-						c.Draw(crosb)
-						crosb.SetAngle(-180)
-						crosb.SetPos(1*media[0], 1*media[1])
-						c.Draw(crosb)
-						crosb.SetAngle(0)
-						crosb.SetPos(0.0, 0.0)
-						fmt.Println("new page")
-						ypos = top
-						xpos = left
-						c.NewPage()
-						oncey = true
-					}
-				} else if oncex == false {
-					fmt.Println("new crosx")
-					l := c.NewLine(xpos+crosx, ypos-dely, xpos+crosx, ypos-dely-crosh)
-					l.SetLineWidth(1.5)
-					crosb.Draw(l)
-					l = c.NewLine(endx-crosx, ypos-dely, endx-crosx, ypos-dely-crosh)
-					l.SetLineWidth(1.5)
-					crosb.Draw(l)
+				num := ff[x] + j*col
+				if num > np {
+					continue
 				}
+				num = pxp[num-1]
+				//			fmt.Println(num)
+				if i >= maxOnPage {
+					nextPage = (maxOnPage+i)%maxOnPage == 0
+				}
+				if nextPage {
+					c.Draw(cros2b)
+					ypos = top
+					c.NewPage()
+					nextPage = false
+				}
+				i++
 				pg, err := pdfReader.GetPage(num)
 				if err != nil {
 					log.Fatal(err)
@@ -268,142 +343,16 @@ func main() {
 				bk.SetPos(xpos, ypos)
 				_ = c.Draw(bk)
 
-				//	fmt.Println(num, xpos, ypos)
 				xpos += float64(w)
 				//fmt.Print("\033[H\033[2J")
-				fmt.Println(num)
+				//fmt.Print(num)
 			}
+			ypos += float64(h)
+			xpos = left
+			j++
 		}
-		fmt.Println("last crosb")
-		c.Draw(crosb)
-		crosb.SetAngle(-180)
-		crosb.SetPos(1*media[0], 1*media[1])
-		c.Draw(crosb)
-		crosb.SetAngle(0)
-		crosb.SetPos(0.0, 0.0)
-	} else {
-		// parse grid
-		colrow := strings.Split(grid, "x")
-		if len(colrow) != 2 {
-			log.Fatal(errors.New("grid length invalid"))
-		}
-
-		col, err := strconv.Atoi(colrow[0])
-		if err != nil {
-			log.Fatal(err)
-		}
-		row, err := strconv.Atoi(colrow[1])
-		if err != nil {
-			log.Fatal(err)
-		}
-		// parse flow
-		var ff []int
-		if flow != "" {
-			ff, err = getFlowAsInts(strings.Split(flow, ","), col)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if len(ff) != col {
-				log.Fatal(fmt.Errorf("flow should be equal with %d", col))
-			}
-		} else {
-			for i := 1; i <= col; i++ {
-				ff = append(ff, i)
-			}
-		}
-
-		var nextPage bool
-		var maxOnPage = col * row
-		var i, j int
-
-		// explicit pages with gaps
-		var pxp []int
-		for _, pp := range ppp {
-			for p := pp.A; p <= pp.Z; p++ {
-				pxp = append(pxp, p)
-			}
-		}
-		np = len(pxp)
-		if lessPagesNum > 0 && lessPagesNum < np {
-			np = lessPagesNum
-		}
-		//fmt.Println(pxp)
-		// crosb
-		for y := 0; y < row; y++ {
-			for x := 0; x < col; x++ {
-				if y == 0 {
-					l := c.NewLine(left+float64(x)*w+crosx, top-dely, left+float64(x)*w+crosx, top-dely-crosh)
-					l.SetLineWidth(1.5)
-					crosb.Draw(l)
-					l = c.NewLine(left+float64(x+1)*w-crosx, top-dely, left+float64(x+1)*w-crosx, top-dely-crosh)
-					l.SetLineWidth(1.5)
-					crosb.Draw(l)
-				}
-			}
-			l := c.NewLine(left-delx, top+float64(y)*h+crosy, left-delx-crosw, top+float64(y)*h+crosy)
-			l.SetLineWidth(1.5)
-			crosb.Draw(l)
-			l = c.NewLine(left-delx, top+float64(y+1)*h-crosy, left-delx-crosw, top+float64(y+1)*h-crosy)
-			l.SetLineWidth(1.5)
-			crosb.Draw(l)
-		}
-		cros2b := creator.NewBlock(media[0], media[1])
-		cros2b.SetPos(0.0, 0.0)
-		cros2b.Draw(crosb)
-		crosb.SetAngle(-180)
-		crosb.SetPos(1*media[0], 1*media[1])
-		cros2b.Draw(crosb)
-		crosb.SetAngle(0)
-		crosb.SetPos(0.0, 0.0)
-
-	grid:
-		for {
-			for y := 0; y < row; y++ {
-				for x := 0; x < len(ff); x++ {
-					if i >= np {
-						break grid
-					}
-					num := ff[x] + j*col
-					if num > np {
-						continue
-					}
-					num = pxp[num-1]
-					//			fmt.Println(num)
-					if i >= maxOnPage {
-						nextPage = (maxOnPage+i)%maxOnPage == 0
-					}
-					if nextPage {
-						c.Draw(cros2b)
-						ypos = top
-						c.NewPage()
-						nextPage = false
-					}
-					i++
-					pg, err := pdfReader.GetPage(num)
-					if err != nil {
-						log.Fatal(err)
-					}
-					bk, err := creator.NewBlockFromPage(pg)
-					if err != nil {
-						log.Fatal(err)
-					}
-					if angle != 0.0 {
-						bk.SetAngle(angle)
-					}
-					bk.SetPos(xpos, ypos)
-					_ = c.Draw(bk)
-
-					xpos += float64(w)
-					//fmt.Print("\033[H\033[2J")
-					//fmt.Print(num)
-				}
-				ypos += float64(h)
-				xpos = left
-				j++
-			}
-		}
-		c.Draw(cros2b)
 	}
+	c.Draw(cros2b)
 	err = c.WriteToFile(fout)
 	if err != nil {
 		log.Fatal(err)
