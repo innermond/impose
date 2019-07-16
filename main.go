@@ -24,12 +24,15 @@ var (
 	height                   float64
 	unit                     string
 	top, left, bottom, right float64
-	centerx, centery         bool
+	center, centerx, centery bool
 	lessPagesNum             int
 	pages                    string
 	grid                     string
 	flow                     string
 	angle                    float64
+	bleed, bleedx, bleedy    float64
+	offset, offx, offy       float64
+	marksize, markw, markh   float64
 )
 
 func param() error {
@@ -44,6 +47,7 @@ func param() error {
 	flag.Float64Var(&left, "left", 5.0, "left margin")
 	flag.Float64Var(&bottom, "bottom", 5.0, "bottom margin")
 	flag.Float64Var(&right, "right", 5.0, "right margin")
+	flag.BoolVar(&center, "center", false, "center along sheet axes")
 	flag.BoolVar(&centerx, "centerx", false, "center along sheet width")
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
 	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
@@ -51,6 +55,15 @@ func param() error {
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
+	flag.Float64Var(&offset, "offset", 2.0, "distance cut mark keeps from the last edge")
+	flag.Float64Var(&offx, "offx", 2.0, " axe x distance cut mark keeps from the last edge")
+	flag.Float64Var(&offy, "offy", 2.0, " axe y distance cut mark keeps from the last edge")
+	flag.Float64Var(&bleed, "bleed", 2.0, "distance cut mark has been given in respect to the last edge")
+	flag.Float64Var(&bleedx, "bleedx", 2.0, "axe x distance cut mark has been given in respect to the last edge")
+	flag.Float64Var(&bleedy, "bleedy", 2.0, "axe y distance cut mark has been given in respect to the last edge")
+	flag.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
+	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
+	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
 
 	flag.Parse()
 
@@ -76,6 +89,18 @@ func param() error {
 			centerx = true
 		case "centery":
 			centery = true
+		case "center":
+			centerx = center
+			centery = center
+		case "offset":
+			offx = offset
+			offy = offset
+		case "marksize":
+			markw = marksize
+			markh = marksize
+		case "bleed":
+			bleedx = bleed
+			bleedy = bleed
 		}
 	})
 
@@ -279,8 +304,8 @@ func main() {
 	offy := 2 * creator.PPMM
 	offx -= bleedx
 	offy -= bleedy
-	crosh := 5 * creator.PPMM
-	crosw := 5 * creator.PPMM
+	markh := 5 * creator.PPMM
+	markw := 5 * creator.PPMM
 	cros2bw := left + float64(col)*w + right
 	cros2bh := top + float64(row)*h + bottom
 	crosb := creator.NewBlock(cros2bw, cros2bh)
@@ -290,19 +315,19 @@ func main() {
 	for y := 0; y < row; y++ {
 		for x := 0; x < col; x++ {
 			if y == 0 {
-				l := c.NewLine(left+float64(x)*w+bleedx-0.5*lw, top-offy, left+float64(x)*w+bleedx-0.5*lw, top-offy-crosh)
+				l := c.NewLine(left+float64(x)*w+bleedx-0.5*lw, top-offy, left+float64(x)*w+bleedx-0.5*lw, top-offy-markh)
 				l.SetLineWidth(lw)
 				crosb.Draw(l)
-				l = c.NewLine(left+float64(x+1)*w-bleedx-0.5*lw, top-offy, left+float64(x+1)*w-bleedx-0.5*lw, top-offy-crosh)
+				l = c.NewLine(left+float64(x+1)*w-bleedx-0.5*lw, top-offy, left+float64(x+1)*w-bleedx-0.5*lw, top-offy-markh)
 				l.SetLineWidth(lw)
 
 				crosb.Draw(l)
 			}
 		}
-		l := c.NewLine(left-offx, top+float64(y)*h+bleedy+0.5*lw, left-offx-crosw, top+float64(y)*h+bleedy+0.5*lw)
+		l := c.NewLine(left-offx, top+float64(y)*h+bleedy+0.5*lw, left-offx-markw, top+float64(y)*h+bleedy+0.5*lw)
 		l.SetLineWidth(lw)
 		crosb.Draw(l)
-		l = c.NewLine(left-offx, top+float64(y+1)*h-bleedy+0.5*lw, left-offx-crosw, top+float64(y+1)*h-bleedy+0.5*lw)
+		l = c.NewLine(left-offx, top+float64(y+1)*h-bleedy+0.5*lw, left-offx-markw, top+float64(y+1)*h-bleedy+0.5*lw)
 		l.SetLineWidth(lw)
 		crosb.Draw(l)
 	}
