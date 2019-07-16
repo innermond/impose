@@ -43,10 +43,10 @@ func param() error {
 	flag.Float64Var(&width, "width", 320.0, "imposition sheet width")
 	flag.Float64Var(&height, "height", 450.0, "imposition sheet height")
 	flag.StringVar(&unit, "unit", "mm", "unit of measurements")
-	flag.Float64Var(&top, "top", 5.0, "top margin")
-	flag.Float64Var(&left, "left", 5.0, "left margin")
-	flag.Float64Var(&bottom, "bottom", 5.0, "bottom margin")
-	flag.Float64Var(&right, "right", 5.0, "right margin")
+	flag.Float64Var(&top, "top", 0.0, "top margin")
+	flag.Float64Var(&left, "left", 0.0, "left margin")
+	flag.Float64Var(&bottom, "bottom", 0.0, "bottom margin")
+	flag.Float64Var(&right, "right", 0.0, "right margin")
 	flag.BoolVar(&center, "center", false, "center along sheet axes")
 	flag.BoolVar(&centerx, "centerx", false, "center along sheet width")
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
@@ -82,6 +82,15 @@ func param() error {
 	bottom *= creator.PPMM
 	width *= creator.PPMM
 	height *= creator.PPMM
+	offset *= creator.PPMM
+	offx *= creator.PPMM
+	offy *= creator.PPMM
+	bleed *= creator.PPMM
+	bleedx *= creator.PPMM
+	bleedy *= creator.PPMM
+	marksize *= creator.PPMM
+	markw *= creator.PPMM
+	markh *= creator.PPMM
 
 	flag.Visit(func(f *flag.Flag) {
 		switch f.Name {
@@ -103,6 +112,9 @@ func param() error {
 			bleedy = bleed
 		}
 	})
+
+	offx -= bleedx
+	offy -= bleedy
 
 	return err
 }
@@ -284,14 +296,6 @@ func main() {
 	}
 	//fmt.Println(pxp)
 	// crosb
-	bleedx := 4 * creator.PPMM
-	bleedy := 4 * creator.PPMM
-	offx := 2 * creator.PPMM
-	offy := 2 * creator.PPMM
-	offx -= bleedx
-	offy -= bleedy
-	markh := 5 * creator.PPMM
-	markw := 5 * creator.PPMM
 	cros2bw := left + float64(col)*w + right
 	cros2bh := top + float64(row)*h + bottom
 	crosb := creator.NewBlock(cros2bw, cros2bh)
