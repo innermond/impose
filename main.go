@@ -232,6 +232,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if left+right+float64(col)*w > media[0] {
+		log.Fatalf("%d columns do not fit", col)
+	}
+	if top+bottom+float64(row)*h > media[1] {
+		log.Fatalf("%d rows do not fit", row)
+	}
+
 	// parse flow
 	var ff []int
 	if flow != "" {
@@ -265,35 +273,36 @@ func main() {
 	}
 	//fmt.Println(pxp)
 	// crosb
-	crosx := 4 * creator.PPMM
-	crosy := 4 * creator.PPMM
-	delx := 2 * creator.PPMM
-	dely := 2 * creator.PPMM
-	delx -= crosx
-	dely -= crosy
+	bleedx := 4 * creator.PPMM
+	bleedy := 4 * creator.PPMM
+	offx := 2 * creator.PPMM
+	offy := 2 * creator.PPMM
+	offx -= bleedx
+	offy -= bleedy
 	crosh := 5 * creator.PPMM
 	crosw := 5 * creator.PPMM
 	cros2bw := left + float64(col)*w + right
 	cros2bh := top + float64(row)*h + bottom
 	crosb := creator.NewBlock(cros2bw, cros2bh)
 	crosb.SetPos(0.0, 0.0)
-	lw := 1 * creator.PPMM // points
+	lw := 0.4 * creator.PPMM // points
 	// create crossbox
 	for y := 0; y < row; y++ {
 		for x := 0; x < col; x++ {
 			if y == 0 {
-				l := c.NewLine(left+float64(x)*w+crosx-0.5*lw, top-dely, left+float64(x)*w+crosx-0.5*lw, top-dely-crosh)
+				l := c.NewLine(left+float64(x)*w+bleedx-0.5*lw, top-offy, left+float64(x)*w+bleedx-0.5*lw, top-offy-crosh)
 				l.SetLineWidth(lw)
 				crosb.Draw(l)
-				l = c.NewLine(left+float64(x+1)*w-crosx-0.5*lw, top-dely, left+float64(x+1)*w-crosx-0.5*lw, top-dely-crosh)
+				l = c.NewLine(left+float64(x+1)*w-bleedx-0.5*lw, top-offy, left+float64(x+1)*w-bleedx-0.5*lw, top-offy-crosh)
 				l.SetLineWidth(lw)
+
 				crosb.Draw(l)
 			}
 		}
-		l := c.NewLine(left-delx, top+float64(y)*h+crosy+0.5*lw, left-delx-crosw, top+float64(y)*h+crosy+0.5*lw)
+		l := c.NewLine(left-offx, top+float64(y)*h+bleedy+0.5*lw, left-offx-crosw, top+float64(y)*h+bleedy+0.5*lw)
 		l.SetLineWidth(lw)
 		crosb.Draw(l)
-		l = c.NewLine(left-delx, top+float64(y+1)*h-crosy+0.5*lw, left-delx-crosw, top+float64(y+1)*h-crosy+0.5*lw)
+		l = c.NewLine(left-offx, top+float64(y+1)*h-bleedy+0.5*lw, left-offx-crosw, top+float64(y+1)*h-bleedy+0.5*lw)
 		l.SetLineWidth(lw)
 		crosb.Draw(l)
 	}
