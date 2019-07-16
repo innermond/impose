@@ -188,20 +188,6 @@ func main() {
 		bottom = top
 	}
 
-	if angle == -90.0 || angle == 270 {
-		left += w
-		right -= w
-	}
-	if angle == 90.0 || angle == -270 {
-		top += h
-		bottom -= h
-	}
-	if angle == -180 || angle == 180 {
-		left += w
-		right -= w
-		top += h
-		bottom -= h
-	}
 	xpos = left
 	ypos = top
 	ppp, err := pange.Selection(pages).Split()
@@ -371,10 +357,21 @@ grid:
 				if err != nil {
 					log.Fatal(err)
 				}
+				xposx, yposy := xpos, ypos
 				if angle != 0.0 {
 					bk.SetAngle(angle)
+					if angle == -90.0 || angle == 270 {
+						xposx += w
+					}
+					if angle == 90.0 || angle == -270 {
+						yposy += h
+					}
+					if angle == -180 || angle == 180 {
+						xposx += w
+						yposy += h
+					}
 				}
-				bk.SetPos(xpos, ypos)
+				bk.SetPos(xposx, yposy)
 				_ = c.Draw(bk)
 
 				xpos += float64(w)
