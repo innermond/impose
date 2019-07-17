@@ -35,6 +35,7 @@ var (
 	bleed, bleedx, bleedy    float64
 	offset, offx, offy       float64
 	marksize, markw, markh   float64
+	booklet                  bool
 )
 
 func param() error {
@@ -68,6 +69,7 @@ func param() error {
 	flag.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
 	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
+	flag.BoolVar(&booklet, "booklet", false, "booklet signature")
 
 	flag.Parse()
 
@@ -220,6 +222,28 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// collect pages as a slice of ints
+	var pxp []int
+	for _, pp := range ppp {
+		for p := pp.A; p <= pp.Z; p++ {
+			pxp = append(pxp, p)
+		}
+	}
+
+	// rearange ppp suitable for booklet signature
+	if booklet {
+		if len(pxp)%4 != 0 {
+			log.Fatalf("number of pages %d is not divisible with 4", len(pxp))
+		}
+		book := []int{}
+		for len(pxp) > 0 {
+			z, a, b, y := pxp[len(pxp)-1], pxp[0], pxp[1], pxp[len(pxp)-2]
+			book = append(book, z, a, b, y)
+			pxp = pxp[2 : len(pxp)-2]
+		}
+
+	}
+
 	// guess the grid
 	var col int
 	var row int = 1
@@ -296,14 +320,6 @@ func main() {
 	var nextPage bool
 	var maxOnPage = col * row
 	var i, j int
-
-	// collect pages as a slice of ints
-	var pxp []int
-	for _, pp := range ppp {
-		for p := pp.A; p <= pp.Z; p++ {
-			pxp = append(pxp, p)
-		}
-	}
 
 	// clamp number of pages
 	np = len(pxp)
