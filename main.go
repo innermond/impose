@@ -165,10 +165,25 @@ func main() {
 		pages = fmt.Sprintf("1-%d", np)
 	}
 
+	// get pages for imposition
+	ppp, err := pange.Selection(pages).Split()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// collect pages as a slice of ints
+	var pxp []int
+	for _, pp := range ppp {
+		for p := pp.A; p <= pp.Z; p++ {
+			pxp = append(pxp, p)
+		}
+	}
+
 	var (
-		col int
+		col int = 1
 		row int = 1
 	)
+
 	if booklet {
 		grid = "2x1"
 	}
@@ -216,7 +231,7 @@ func main() {
 	c.NewPage()
 
 	var (
-		xpos, ypos, endx, endy, peakx, peaky float64
+		xpos, ypos float64
 	)
 
 	// centering by changing margins
@@ -228,7 +243,7 @@ func main() {
 			wpages += w
 			// sensible to grid
 			i++
-			if col > 0 && i == col {
+			if i == col {
 				break
 			}
 		}
@@ -257,18 +272,10 @@ func main() {
 	xpos = left
 	ypos = top
 
-	// get pages for imposition
-	ppp, err := pange.Selection(pages).Split()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// collect pages as a slice of ints
-	var pxp []int
-	for _, pp := range ppp {
-		for p := pp.A; p <= pp.Z; p++ {
-			pxp = append(pxp, p)
-		}
+	// guess the grid
+	if grid == "" {
+		col, row := guessGrid(media, top, right, bottom, left, w, h)
+		log.Fatalf("sugested grid %dx%d", col, row)
 	}
 
 	// rearange ppp suitable for booklet signature
@@ -283,37 +290,6 @@ func main() {
 			pxp = pxp[2 : len(pxp)-2]
 		}
 		pxp = book
-	}
-
-	// guess the grid
-	if grid == "" {
-		var stopCountingCol bool
-	guessing_grid:
-		for _, pp := range ppp {
-			for i := pp.A; i <= pp.Z; i++ {
-				if i > np {
-					break guessing_grid
-				}
-				endx = floor63(xpos + float64(w))
-				peakx = floor63(media[0] - right)
-				if endx > peakx {
-					stopCountingCol = true
-					xpos = left
-					ypos += float64(h)
-					endy = floor63(ypos + float64(h))
-					peaky = floor63(media[1] - bottom)
-					if endy > peaky {
-						break guessing_grid
-					}
-					row++
-				}
-				xpos += float64(w)
-				if !stopCountingCol {
-					col++
-				}
-			}
-		}
-		log.Fatalf("sugested grid %dx%d\n", col, row)
 	}
 
 	// check if media is enough
@@ -521,4 +497,35 @@ func floor63(v float64, p ...int) float64 {
 	}
 	n := math.Pow10(a)
 	return math.Floor(v*n) / n
+}
+
+func guessGrid(media [2]float64, top, right, bottom, left, w, h float64) (col, row int) {
+	var (
+		stopCountingCol          bool
+		xpos, ypos               = left, top
+		endx, endy, peakx, peaky float64
+	)
+
+	col, row = 1, 1
+
+	for {
+		if !stopCountingCol {
+			col++
+		}
+		endx = floor63(xpos + float64(w))
+		peakx = floor63(media[0] - right)
+		if endx > peakx {
+			stopCountingCol = true
+			xpos = left
+			ypos += float64(h)
+			endy = floor63(ypos + float64(h))
+			peaky = floor63(media[1] - bottom)
+			row++
+			if endy > peaky {
+				break
+			}
+		}
+		xpos += float64(w)
+	}
+	return
 }
