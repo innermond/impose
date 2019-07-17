@@ -165,6 +165,30 @@ func main() {
 		pages = fmt.Sprintf("1-%d", np)
 	}
 
+	var (
+		col int
+		row int = 1
+	)
+	if booklet {
+		grid = "2x1"
+	}
+	// parse grid; has form like 2x1, at minimum 3 chars
+	if len(grid) > 2 {
+		colrow := strings.Split(grid, "x")
+		if len(colrow) != 2 {
+			log.Fatal(errors.New("grid length invalid"))
+		}
+
+		col, err = strconv.Atoi(colrow[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		row, err = strconv.Atoi(colrow[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	// set default page media
 	c := creator.New()
 	media := creator.PageSize{width, height}
@@ -186,35 +210,14 @@ func main() {
 
 	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
 		w, h = h, w
+		col, row = row, col
 	}
 
 	c.NewPage()
 
 	var (
 		xpos, ypos, endx, endy, peakx, peaky float64
-		col                                  int
-		row                                  int = 1
 	)
-
-	if booklet {
-		grid = "2x1"
-	}
-	// parse grid; has form like 2x1, at minimum 3 chars
-	if len(grid) > 2 {
-		colrow := strings.Split(grid, "x")
-		if len(colrow) != 2 {
-			log.Fatal(errors.New("grid length invalid"))
-		}
-
-		col, err = strconv.Atoi(colrow[0])
-		if err != nil {
-			log.Fatal(err)
-		}
-		row, err = strconv.Atoi(colrow[1])
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 
 	// centering by changing margins
 	if centerx {
