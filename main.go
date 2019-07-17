@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/innermond/pange"
-	"github.com/unidoc/unipdf/v3/core"
 	"github.com/unidoc/unipdf/v3/creator"
 	pdf "github.com/unidoc/unipdf/v3/model"
 )
@@ -76,6 +75,7 @@ func param() error {
 		return errors.New("pdf file required")
 	}
 
+	// all to points
 	left *= creator.PPMM
 	right *= creator.PPMM
 	top *= creator.PPMM
@@ -113,15 +113,15 @@ func param() error {
 		}
 	})
 
+	offx -= bleedx
+	offy -= bleedy
+
 	postfix = fmt.Sprintf(".%s", strings.TrimSpace(strings.Trim(postfix, ".")))
 
 	if fout == "" {
 		ext := path.Ext(fn)
 		fout = fn[:len(fn)-len(ext)] + postfix + ext
 	}
-
-	offx -= bleedx
-	offy -= bleedy
 
 	return err
 }
@@ -188,6 +188,7 @@ func main() {
 
 	var xpos, ypos, endx, endy, peakx, peaky float64
 
+	// centering by changing marins
 	if centerx {
 		wpages := w
 		available := media[0] - (left + right)
@@ -209,8 +210,11 @@ func main() {
 		bottom = top
 	}
 
+	// start to lay down pages
 	xpos = left
 	ypos = top
+
+	// get pages for imposition
 	ppp, err := pange.Selection(pages).Split()
 	if err != nil {
 		log.Fatal(err)
@@ -249,6 +253,7 @@ func main() {
 		}
 		log.Fatalf("sugested grid %dx%d\n", col, row)
 	}
+
 	// parse grid
 	colrow := strings.Split(grid, "x")
 	if len(colrow) != 2 {
@@ -264,6 +269,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// check if media is enough
 	if left+right+float64(col)*w > media[0] {
 		log.Fatalf("%d columns do not fit", col)
 	}
@@ -291,25 +297,30 @@ func main() {
 	var maxOnPage = col * row
 	var i, j int
 
-	// explicit pages with gaps
+	// collect pages as a slice of ints
 	var pxp []int
 	for _, pp := range ppp {
 		for p := pp.A; p <= pp.Z; p++ {
 			pxp = append(pxp, p)
 		}
 	}
+
+	// clamp number of pages
 	np = len(pxp)
 	if lessPagesNum > 0 && lessPagesNum < np {
 		np = lessPagesNum
 	}
-	//fmt.Println(pxp)
-	// crosb
+
 	cros2bw := left + float64(col)*w + right
 	cros2bh := top + float64(row)*h + bottom
+	// create cropmarks block
 	crosb := creator.NewBlock(cros2bw, cros2bh)
 	crosb.SetPos(0.0, 0.0)
+
+	// thw width used for cropmark
 	lw := 0.4 * creator.PPMM // points
-	// create crossbox
+
+	// create top line of cropmarks and left line
 	for y := 0; y < row; y++ {
 		for x := 0; x < col; x++ {
 			if y == 0 {
@@ -329,6 +340,9 @@ func main() {
 		l.SetLineWidth(lw)
 		crosb.Draw(l)
 	}
+
+	// use the half of cropmarks block created and a rotated duplicate of it
+	// to get a fully cropmarks block
 	cros2b := creator.NewBlock(cros2bw, cros2bh)
 	cros2b.SetPos(0.0, 0.0)
 	cros2b.Draw(crosb)
@@ -338,6 +352,7 @@ func main() {
 	crosb.SetAngle(0)
 	crosb.SetPos(0.0, 0.0)
 
+	// start imposition
 	var (
 		pg *pdf.PdfPage
 		bk *creator.Block
@@ -349,27 +364,39 @@ grid:
 				if i >= np {
 					break grid
 				}
+				// take flow order into account
 				num := ff[x] + j*col
+				// num resulted larger than number of pages
+				// place an empty space with the right wide
 				if num > np {
 					xpos += float64(w)
 					continue
 				}
+				// get the page number from pages slice
 				num = pxp[num-1]
-				//			fmt.Println(num)
+
+				// check the need for a new page
 				if i >= maxOnPage {
 					nextPage = (maxOnPage+i)%maxOnPage == 0
 				}
 				if nextPage {
+					// put cropmarks on sheet
 					c.Draw(cros2b)
+					// initialize position
 					ypos = top
 					c.NewPage()
 					nextPage = false
 				}
+
+				// count pages processed
 				i++
+
+				// what just a certain page?
 				if samepage > 0 {
 					num = samepage
 				}
-				//if true {
+
+				// import page
 				pg, err = pdfReader.GetPage(num)
 				if err != nil {
 					log.Fatal(err)
@@ -379,6 +406,7 @@ grid:
 					log.Fatal(err)
 				}
 
+				// lay down imported page
 				xposx, yposy := xpos, ypos
 				if angle != 0.0 {
 					bk.SetAngle(angle)
@@ -397,16 +425,17 @@ grid:
 				_ = c.Draw(bk)
 
 				xpos += float64(w)
-				//fmt.Print("\033[H\033[2J")
-				//fmt.Print(num)
 			}
 			ypos += float64(h)
 			xpos = left
 			j++
 		}
+		// the poor man's vizual indicator that something is happening
 		fmt.Print(".")
 	}
+	// put cropmarks for the last sheet
 	c.Draw(cros2b)
+
 	err = c.WriteToFile(fout)
 	if err != nil {
 		log.Fatal(err)
@@ -416,57 +445,6 @@ grid:
 
 	log.Printf("time taken %v\n", elapsed)
 	log.Printf("file %s writteni\n", fout)
-}
-
-// GetBox gets the inheritable media box value, either from the page
-// or a higher up page/pages struct.
-func GetBox(p *pdf.PdfPage, boxname string) (box *pdf.PdfRectangle, err error) {
-
-	switch boxname {
-	case "MediaBox":
-		box = p.MediaBox
-	case "BleedBox":
-		box = p.BleedBox
-	case "TrimBox":
-		box = p.TrimBox
-	case "CropBox":
-		box = p.CropBox
-	case "ArtBox":
-		box = p.ArtBox
-	default:
-		err = fmt.Errorf("invalid box name %s", boxname)
-		return
-	}
-
-	if box != nil {
-		return box, nil
-	}
-
-	node := p.Parent
-	for node != nil {
-		dict, ok := core.GetDict(node)
-		if !ok {
-			return nil, errors.New("invalid parent objects dictionary")
-		}
-
-		if obj := dict.Get(core.PdfObjectName(boxname)); obj != nil {
-			arr, ok := obj.(*core.PdfObjectArray)
-			if !ok {
-				return nil, errors.New("invalid media box")
-			}
-			rect, err := pdf.NewPdfRectangle(*arr)
-
-			if err != nil {
-				return nil, err
-			}
-
-			return rect, nil
-		}
-
-		node = dict.Get(core.PdfObjectName("Parent"))
-	}
-
-	return nil, fmt.Errorf("box %s not defined", boxname)
 }
 
 func getFlowAsInts(ss []string, max int) (list []int, err error) {
@@ -493,6 +471,10 @@ func getFlowAsInts(ss []string, max int) (list []int, err error) {
 }
 
 // round floor to floor
+// go has a quirks regarding floor numbers
+// identical numbers may have their remote decimals different
+// so comparing them for equality is compromised
+// but we restore order by keeping only a specified number of decimals
 func floor63(v float64, p ...int) float64 {
 	a := 2
 	if len(p) > 0 {
