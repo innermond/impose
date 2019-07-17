@@ -196,6 +196,9 @@ func main() {
 		row                                  int = 1
 	)
 
+	if booklet {
+		grid = "2x1"
+	}
 	// parse grid; has form like 2x1, at minimum 3 chars
 	if len(grid) > 2 {
 		colrow := strings.Split(grid, "x")
@@ -220,6 +223,7 @@ func main() {
 		i := 0
 		for wpages < available {
 			wpages += w
+			// sensible to grid
 			i++
 			if col > 0 && i == col {
 				break
@@ -235,6 +239,7 @@ func main() {
 		i := 0
 		for hpages < available {
 			hpages += h
+			// sensible to grid
 			i++
 			if i == row {
 				break
@@ -289,7 +294,6 @@ func main() {
 				endx = floor63(xpos + float64(w))
 				peakx = floor63(media[0] - right)
 				if endx > peakx {
-					fmt.Println("new row")
 					stopCountingCol = true
 					xpos = left
 					ypos += float64(h)
@@ -335,7 +339,6 @@ func main() {
 
 	var nextPage bool
 	var maxOnPage = col * row
-	var i, j int
 
 	// clamp number of pages
 	np = len(pxp)
@@ -386,8 +389,9 @@ func main() {
 
 	// start imposition
 	var (
-		pg *pdf.PdfPage
-		bk *creator.Block
+		pg   *pdf.PdfPage
+		bk   *creator.Block
+		i, j int
 	)
 grid:
 	for {
