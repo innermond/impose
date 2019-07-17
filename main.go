@@ -112,6 +112,8 @@ func param() error {
 		case "bleed":
 			bleedx = bleed
 			bleedy = bleed
+		case "booklet":
+			booklet = true
 		}
 	})
 
@@ -188,14 +190,40 @@ func main() {
 
 	c.NewPage()
 
-	var xpos, ypos, endx, endy, peakx, peaky float64
+	var (
+		xpos, ypos, endx, endy, peakx, peaky float64
+		col                                  int
+		row                                  int = 1
+	)
 
-	// centering by changing marins
+	// parse grid; has form like 2x1, at minimum 3 chars
+	if len(grid) > 2 {
+		colrow := strings.Split(grid, "x")
+		if len(colrow) != 2 {
+			log.Fatal(errors.New("grid length invalid"))
+		}
+
+		col, err = strconv.Atoi(colrow[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		row, err = strconv.Atoi(colrow[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// centering by changing margins
 	if centerx {
 		wpages := w
 		available := media[0] - (left + right)
+		i := 0
 		for wpages < available {
 			wpages += w
+			i++
+			if col > 0 && i == col {
+				break
+			}
 		}
 		wpages -= w
 		left = (width - wpages) * 0.5
@@ -204,8 +232,13 @@ func main() {
 	if centery {
 		hpages := h
 		available := media[1] - (top + bottom)
+		i := 0
 		for hpages < available {
 			hpages += h
+			i++
+			if i == row {
+				break
+			}
 		}
 		hpages -= h
 		top = (height - hpages) * 0.5
@@ -241,12 +274,10 @@ func main() {
 			book = append(book, z, a, b, y)
 			pxp = pxp[2 : len(pxp)-2]
 		}
-
+		pxp = book
 	}
 
 	// guess the grid
-	var col int
-	var row int = 1
 	if grid == "" {
 		var stopCountingCol bool
 	guessing_grid:
@@ -276,21 +307,6 @@ func main() {
 			}
 		}
 		log.Fatalf("sugested grid %dx%d\n", col, row)
-	}
-
-	// parse grid
-	colrow := strings.Split(grid, "x")
-	if len(colrow) != 2 {
-		log.Fatal(errors.New("grid length invalid"))
-	}
-
-	col, err = strconv.Atoi(colrow[0])
-	if err != nil {
-		log.Fatal(err)
-	}
-	row, err = strconv.Atoi(colrow[1])
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	// check if media is enough
