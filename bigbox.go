@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/unidoc/unipdf/v3/creator"
+	"github.com/unidoc/unipdf/v3/model"
 )
 
 type Box struct {
@@ -132,4 +135,107 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 		xpos += float64(bb.Small.Width)
 	}
 	return
+}
+
+func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block) {
+	// start imposition
+	var (
+		pg   *model.PdfPage
+		bk   *creator.Block
+		i, j int
+
+		nextPage   bool
+		col, row   = bb.Col, bb.Row
+		left, top  = bb.Big.Left, bb.Big.Top
+		w, h       = bb.Small.Width, bb.Small.Height
+		xpos, ypos = left, top
+		maxOnPage  = col * row
+		num        int
+	)
+
+	// parse flow
+	ff, err := bb.ParseFlow(flow)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+grid:
+	for {
+		for y := 0; y < row; y++ {
+			for x := 0; x < len(ff); x++ {
+				if i >= np {
+					break grid
+				}
+				// take flow order into account
+				num = ff[x] + j*col
+				// num resulted larger than number of pages
+				// place an empty space with the right wide
+				if num > np {
+					xpos += float64(w)
+					continue
+				}
+				// get the page number from pages slice
+				num = pxp[num-1]
+
+				// check the need for a new page
+				if i >= maxOnPage {
+					nextPage = (maxOnPage+i)%maxOnPage == 0
+				}
+				if nextPage {
+					// put cropmarks on sheet
+					c.Draw(cros2b)
+					// initialize position
+					ypos = top
+					c.NewPage()
+					nextPage = false
+				}
+
+				// count pages processed
+				i++
+
+				// what just a certain page?
+				if samepage > 0 {
+					num = samepage
+				}
+
+				// import page
+				pg, err = pdfReader.GetPage(num)
+				if err != nil {
+					log.Fatal(err)
+				}
+				bk, err = creator.NewBlockFromPage(pg)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				// lay down imported page
+				xposx, yposy := xpos, ypos
+				if angle != 0.0 {
+					bk.SetAngle(angle)
+					if angle == -90.0 || angle == 270 {
+						xposx += w
+					}
+					if angle == 90.0 || angle == -270 {
+						yposy += h
+					}
+					if angle == -180 || angle == 180 {
+						xposx += w
+						yposy += h
+					}
+				}
+				// layout page
+				bk.SetPos(xposx, yposy)
+				_ = c.Draw(bk)
+
+				xpos += float64(w)
+			}
+			ypos += float64(h)
+			xpos = left
+			j++
+		}
+		// the poor man's vizual indicator that something is happening
+		fmt.Print(".")
+	}
+	// put cropmarks for the last sheet
+	c.Draw(cros2b)
 }

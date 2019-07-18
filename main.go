@@ -117,6 +117,8 @@ func param() error {
 		}
 	})
 
+	// last edge is further inside mediabox by bleed amount
+	// adjunst offsets otherwise they will be aware only by media edge
 	offx -= bleedx
 	offy -= bleedy
 
@@ -166,17 +168,16 @@ func main() {
 	}
 
 	// get pages for imposition
-	ppp, err := pange.Selection(pages).Split()
+	sel := pange.Selection(pages)
+	ppp, err := sel.Split()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// collect pages as a slice of ints
-	var pxp []int
-	for _, pp := range ppp {
-		for p := pp.A; p <= pp.Z; p++ {
-			pxp = append(pxp, p)
-		}
+	// all pages as a slice of ints
+	pxp, err := sel.Full(ppp...)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var (
@@ -233,10 +234,6 @@ func main() {
 
 	c.NewPage()
 
-	var (
-		xpos, ypos float64
-	)
-
 	// centering by changing margins
 	if centerx {
 		bb.AdjustMarginCenteringAlongWidth()
@@ -255,9 +252,6 @@ func main() {
 	top, right, bottom, left = bb.Big.Top, bb.Big.Right, bb.Big.Bottom, bb.Big.Left
 	col, row = bb.Col, bb.Row
 	h, w = bb.Small.Height, bb.Small.Width
-
-	xpos = left
-	ypos = top
 
 	// rearange ppp suitable for booklet signature
 	if booklet {
@@ -281,15 +275,6 @@ func main() {
 		log.Fatalf("%d rows do not fit", bb.Row)
 	}
 
-	// parse flow
-	ff, err := bb.ParseFlow(flow)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var nextPage bool
-	var maxOnPage = col * row
-
 	// clamp number of pages
 	np = len(pxp)
 	if lessPagesNum > 0 && lessPagesNum < np {
@@ -301,90 +286,8 @@ func main() {
 	exth := offy + markh
 	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 	cros2b := cropbk.Create()
-	// start imposition
-	var (
-		pg   *pdf.PdfPage
-		bk   *creator.Block
-		i, j int
-	)
-grid:
-	for {
-		for y := 0; y < row; y++ {
-			for x := 0; x < len(ff); x++ {
-				if i >= np {
-					break grid
-				}
-				// take flow order into account
-				num := ff[x] + j*col
-				// num resulted larger than number of pages
-				// place an empty space with the right wide
-				if num > np {
-					xpos += float64(w)
-					continue
-				}
-				// get the page number from pages slice
-				num = pxp[num-1]
 
-				// check the need for a new page
-				if i >= maxOnPage {
-					nextPage = (maxOnPage+i)%maxOnPage == 0
-				}
-				if nextPage {
-					// put cropmarks on sheet
-					c.Draw(cros2b)
-					// initialize position
-					ypos = top
-					c.NewPage()
-					nextPage = false
-				}
-
-				// count pages processed
-				i++
-
-				// what just a certain page?
-				if samepage > 0 {
-					num = samepage
-				}
-
-				// import page
-				pg, err = pdfReader.GetPage(num)
-				if err != nil {
-					log.Fatal(err)
-				}
-				bk, err = creator.NewBlockFromPage(pg)
-				if err != nil {
-					log.Fatal(err)
-				}
-
-				// lay down imported page
-				xposx, yposy := xpos, ypos
-				if angle != 0.0 {
-					bk.SetAngle(angle)
-					if angle == -90.0 || angle == 270 {
-						xposx += w
-					}
-					if angle == 90.0 || angle == -270 {
-						yposy += h
-					}
-					if angle == -180 || angle == 180 {
-						xposx += w
-						yposy += h
-					}
-				}
-				bk.SetPos(xposx, yposy)
-				_ = c.Draw(bk)
-
-				xpos += float64(w)
-			}
-			ypos += float64(h)
-			xpos = left
-			j++
-		}
-		// the poor man's vizual indicator that something is happening
-		fmt.Print(".")
-	}
-	// put cropmarks for the last sheet
-	c.Draw(cros2b)
+	bb.Impose(flow, np, angle, pxp, pdfReader, c, cros2b)
 
 	err = c.WriteToFile(fout)
 	if err != nil {
@@ -394,7 +297,7 @@ grid:
 	elapsed := time.Since(start)
 
 	log.Printf("time taken %v\n", elapsed)
-	log.Printf("file %s writteni\n", fout)
+	log.Printf("file %s written\n", fout)
 }
 
 func getFlowAsInts(ss []string, max int) (list []int, err error) {

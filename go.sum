@@ -8,6 +8,10 @@ github.com/gunnsth/pkcs7 v0.0.0-20181213175627-3cffc6fbfe83 h1:saj5dTV7eQ1wFg/gV
 github.com/gunnsth/pkcs7 v0.0.0-20181213175627-3cffc6fbfe83/go.mod h1:xaGEIRenAiJcGgd9p62zbiP4993KaV3PdjczwGnP50I=
 github.com/innermond/pange v0.0.0-20190714173022-12e9d9c082a5 h1:+SMVDF2/T6i5Y+S7hTJNpCturB+Z4W6H6v/KFy4eQEw=
 github.com/innermond/pange v0.0.0-20190714173022-12e9d9c082a5/go.mod h1:R6hcsCt5IWBa/5i+ozvAn5JidHO1em19JnhJSBVyu5Y=
+github.com/innermond/pange v0.0.0-20190718171718-1fcf81d4755c h1:WZ9ePy9K5Qliib+TwjF+jxu7+ui+2kvBKSBl41nyqto=
+github.com/innermond/pange v0.0.0-20190718171718-1fcf81d4755c/go.mod h1:R6hcsCt5IWBa/5i+ozvAn5JidHO1em19JnhJSBVyu5Y=
+github.com/innermond/pange v0.0.0-20190718173403-0313c54d45f6 h1:GlHiqPLY+gxLnpqiOmxVbCE9zR0JNntt2JHJak4uRDw=
+github.com/innermond/pange v0.0.0-20190718173403-0313c54d45f6/go.mod h1:R6hcsCt5IWBa/5i+ozvAn5JidHO1em19JnhJSBVyu5Y=
 github.com/innermond/pange v1.0.0 h1:fESqLRGp0FyM8NIeDrR/W5lzZOQXaWsh7cvK5LaSR24=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
