@@ -37,16 +37,16 @@ type Boxes struct {
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
-	wpages := bb.Small.Width
+	wpages := 0.0
 	available := bb.Big.AvailableWidth()
 	i := 0
 	for wpages < available {
 		wpages += bb.Small.Width
 		// sensible to grid
-		i++
 		if i == bb.Col {
 			break
 		}
+		i++
 	}
 	wpages -= bb.Small.Width
 	bb.Big.Left = (bb.Big.Width - wpages) * 0.5
@@ -54,16 +54,16 @@ func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
-	hpages := bb.Small.Height
+	hpages := 0.0
 	available := bb.Big.AvailableHeight()
 	i := 0
 	for hpages < available {
 		hpages += bb.Small.Height
 		// sensible to grid
-		i++
 		if i == bb.Row {
 			break
 		}
+		i++
 	}
 	hpages -= bb.Small.Height
 	bb.Big.Top = (bb.Big.Height - hpages) * 0.5
@@ -76,11 +76,11 @@ func (bb *Boxes) SwitchGrid() {
 }
 
 func (bb *Boxes) EnoughWidth() bool {
-	return bb.Big.AvailableWidth() > float64(bb.Col)*bb.Small.Width
+	return bb.Big.AvailableWidth() >= float64(bb.Col)*bb.Small.Width
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	return bb.Big.AvailableHeight() > float64(bb.Row)*bb.Small.Height
+	return bb.Big.AvailableHeight() >= float64(bb.Row)*bb.Small.Height
 }
 
 func (bb *Boxes) ParseFlow(flow string) ([]int, error) {

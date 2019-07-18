@@ -245,15 +245,19 @@ func main() {
 		bb.AdjustMarginCenteringAlongHeight()
 	}
 
-	// start to lay down pages
-	xpos = bb.Big.Left
-	ypos = bb.Big.Top
-
 	// guess the grid
 	if grid == "" {
 		col, row := bb.GuessGrid()
 		log.Fatalf("sugested grid %dx%d", col, row)
 	}
+
+	// start to lay down pages
+	top, right, bottom, left = bb.Big.Top, bb.Big.Right, bb.Big.Bottom, bb.Big.Left
+	col, row = bb.Col, bb.Row
+	h, w = bb.Small.Height, bb.Small.Width
+
+	xpos = left
+	ypos = top
 
 	// rearange ppp suitable for booklet signature
 	if booklet {
@@ -292,49 +296,11 @@ func main() {
 		np = lessPagesNum
 	}
 
-	cros2bw := float64(col) * w
-	cros2bh := float64(row) * h
-	// create cropmarks block
-	crosb := creator.NewBlock(cros2bw, cros2bh)
-	crosb.SetPos(0.0, 0.0)
-
-	// thw width used for cropmark
-	lw := 0.4 * creator.PPMM // points
-
-	// create top line of cropmarks and left line
-	for y := 0; y < row; y++ {
-		for x := 0; x < col; x++ {
-			if y == 0 {
-				// top line
-				l := c.NewLine(left+float64(x)*w+bleedx-0.5*lw, top-offy, left+float64(x)*w+bleedx-0.5*lw, top-offy-markh)
-				l.SetLineWidth(lw)
-				crosb.Draw(l)
-				l = c.NewLine(left+float64(x+1)*w-bleedx-0.5*lw, top-offy, left+float64(x+1)*w-bleedx-0.5*lw, top-offy-markh)
-				l.SetLineWidth(lw)
-
-				crosb.Draw(l)
-			}
-		}
-		// left line
-		l := c.NewLine(left-offx, top+float64(y)*h+bleedy+0.5*lw, left-offx-markw, top+float64(y)*h+bleedy+0.5*lw)
-		l.SetLineWidth(lw)
-		crosb.Draw(l)
-		l = c.NewLine(left-offx, top+float64(y+1)*h-bleedy+0.5*lw, left-offx-markw, top+float64(y+1)*h-bleedy+0.5*lw)
-		l.SetLineWidth(lw)
-		crosb.Draw(l)
-	}
-
-	// use the half of cropmarks block created and a rotated duplicate of it
-	// to get a fully cropmarks block
-	cros2b := creator.NewBlock(cros2bw, cros2bh)
-	cros2b.SetPos(0.0, 0.0)
-	cros2b.Draw(crosb)
-	crosb.SetAngle(-180)
-	crosb.SetPos(cros2bw+left-offx-markw, cros2bh+top-offy-markh)
-	cros2b.Draw(crosb)
-	crosb.SetAngle(0)
-	crosb.SetPos(0.0, 0.0)
-
+	// cropmarks adds extra to dimensions
+	extw := offx + markw
+	exth := offy + markh
+	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
+	cros2b := cropbk.Create()
 	// start imposition
 	var (
 		pg   *pdf.PdfPage
