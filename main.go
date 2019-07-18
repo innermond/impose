@@ -223,9 +223,12 @@ func main() {
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
+	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
+	smallbox := &SmallBox{&Box{Width: w, Height: h}}
+	bb := &Boxes{bigbox, smallbox, col, row}
+
 	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
-		w, h = h, w
-		col, row = row, col
+		bb.SwitchGrid()
 	}
 
 	c.NewPage()
@@ -236,45 +239,19 @@ func main() {
 
 	// centering by changing margins
 	if centerx {
-		wpages := w
-		available := media[0] - (left + right)
-		i := 0
-		for wpages < available {
-			wpages += w
-			// sensible to grid
-			i++
-			if i == col {
-				break
-			}
-		}
-		wpages -= w
-		left = (width - wpages) * 0.5
-		right = left
+		bb.AdjustMarginCenteringAlongWidth()
 	}
 	if centery {
-		hpages := h
-		available := media[1] - (top + bottom)
-		i := 0
-		for hpages < available {
-			hpages += h
-			// sensible to grid
-			i++
-			if i == row {
-				break
-			}
-		}
-		hpages -= h
-		top = (height - hpages) * 0.5
-		bottom = top
+		bb.AdjustMarginCenteringAlongHeight()
 	}
 
 	// start to lay down pages
-	xpos = left
-	ypos = top
+	xpos = bb.Big.Left
+	ypos = bb.Big.Top
 
 	// guess the grid
 	if grid == "" {
-		col, row := guessGrid(media, top, right, bottom, left, w, h)
+		col, row := bb.GuessGrid()
 		log.Fatalf("sugested grid %dx%d", col, row)
 	}
 
@@ -293,27 +270,17 @@ func main() {
 	}
 
 	// check if media is enough
-	if left+right+float64(col)*w > media[0] {
-		log.Fatalf("%d columns do not fit", col)
+	if !bb.EnoughWidth() {
+		log.Fatalf("%d columns do not fit", bb.Col)
 	}
-	if top+bottom+float64(row)*h > media[1] {
-		log.Fatalf("%d rows do not fit", row)
+	if !bb.EnoughHeight() {
+		log.Fatalf("%d rows do not fit", bb.Row)
 	}
 
 	// parse flow
-	var ff []int
-	if flow != "" {
-		ff, err = getFlowAsInts(strings.Split(flow, ","), col)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(ff) != col {
-			log.Fatal(fmt.Errorf("number of flow elements should be equal with %d", col))
-		}
-	} else {
-		for i := 1; i <= col; i++ {
-			ff = append(ff, i)
-		}
+	ff, err := bb.ParseFlow(flow)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var nextPage bool
@@ -325,8 +292,8 @@ func main() {
 		np = lessPagesNum
 	}
 
-	cros2bw := left + float64(col)*w + right
-	cros2bh := top + float64(row)*h + bottom
+	cros2bw := float64(col) * w
+	cros2bh := float64(row) * h
 	// create cropmarks block
 	crosb := creator.NewBlock(cros2bw, cros2bh)
 	crosb.SetPos(0.0, 0.0)
@@ -338,6 +305,7 @@ func main() {
 	for y := 0; y < row; y++ {
 		for x := 0; x < col; x++ {
 			if y == 0 {
+				// top line
 				l := c.NewLine(left+float64(x)*w+bleedx-0.5*lw, top-offy, left+float64(x)*w+bleedx-0.5*lw, top-offy-markh)
 				l.SetLineWidth(lw)
 				crosb.Draw(l)
@@ -347,6 +315,7 @@ func main() {
 				crosb.Draw(l)
 			}
 		}
+		// left line
 		l := c.NewLine(left-offx, top+float64(y)*h+bleedy+0.5*lw, left-offx-markw, top+float64(y)*h+bleedy+0.5*lw)
 		l.SetLineWidth(lw)
 		crosb.Draw(l)
@@ -361,7 +330,7 @@ func main() {
 	cros2b.SetPos(0.0, 0.0)
 	cros2b.Draw(crosb)
 	crosb.SetAngle(-180)
-	crosb.SetPos(cros2bw-(right-left), cros2bh-(bottom-top))
+	crosb.SetPos(cros2bw+left-offx-markw, cros2bh+top-offy-markh)
 	cros2b.Draw(crosb)
 	crosb.SetAngle(0)
 	crosb.SetPos(0.0, 0.0)
@@ -497,35 +466,4 @@ func floor63(v float64, p ...int) float64 {
 	}
 	n := math.Pow10(a)
 	return math.Floor(v*n) / n
-}
-
-func guessGrid(media [2]float64, top, right, bottom, left, w, h float64) (col, row int) {
-	var (
-		stopCountingCol          bool
-		xpos, ypos               = left, top
-		endx, endy, peakx, peaky float64
-	)
-
-	col, row = 1, 1
-
-	for {
-		if !stopCountingCol {
-			col++
-		}
-		endx = floor63(xpos + float64(w))
-		peakx = floor63(media[0] - right)
-		if endx > peakx {
-			stopCountingCol = true
-			xpos = left
-			ypos += float64(h)
-			endy = floor63(ypos + float64(h))
-			peaky = floor63(media[1] - bottom)
-			row++
-			if endy > peaky {
-				break
-			}
-		}
-		xpos += float64(w)
-	}
-	return
 }
