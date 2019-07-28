@@ -10,3 +10,5 @@ require (
 	golang.org/x/image v0.0.0-20190703141733-d6a02ce849c9 // indirect
 	golang.org/x/text v0.3.2 // indirect
 )
+
+replace github.com/unidoc/unipdf/v3 v3.0.3 => ../../unipdf

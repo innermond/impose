@@ -140,9 +140,9 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block) {
 	// start imposition
 	var (
-		pg   *model.PdfPage
-		bk   *creator.Block
-		i, j int
+		sheet, pg *model.PdfPage
+		bk        *creator.Block
+		i, j      int
 
 		nextPage   bool
 		col, row   = bb.Col, bb.Row
@@ -152,6 +152,10 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 		maxOnPage  = col * row
 		num        int
 	)
+
+	sheet = model.NewPdfPage()
+	sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
+	c.AddPage(sheet)
 
 	// parse flow
 	ff, err := bb.ParseFlow(flow)
@@ -186,7 +190,11 @@ grid:
 					c.Draw(cros2b)
 					// initialize position
 					ypos = top
-					c.NewPage()
+					//c.NewPage()
+					sheet = model.NewPdfPage()
+					sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
+					c.AddPage(sheet)
+
 					nextPage = false
 				}
 
@@ -223,6 +231,7 @@ grid:
 						yposy += h
 					}
 				}
+				bk.Clip(4, 0, bk.Width()-4, bk.Height())
 				// layout page
 				bk.SetPos(xposx, yposy)
 				_ = c.Draw(bk)

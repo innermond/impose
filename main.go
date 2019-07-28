@@ -205,13 +205,6 @@ func main() {
 		}
 	}
 
-	// set default page media
-	c := creator.New()
-	media := creator.PageSize{width, height}
-	c.SetPageSize(media)
-	// Margins of page
-	c.SetPageMargins(left, right, top, bottom)
-
 	// assume all pages has the same dimensions as first one
 	page, err := pdfReader.GetPage(1)
 	if err != nil {
@@ -231,8 +224,6 @@ func main() {
 	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
 		bb.SwitchGrid()
 	}
-
-	c.NewPage()
 
 	// centering by changing margins
 	if centerx {
@@ -281,6 +272,8 @@ func main() {
 		np = lessPagesNum
 	}
 
+	c := creator.New()
+	c.SetPageSize(creator.PageSize{width, height})
 	// cropmarks adds extra to dimensions
 	extw := offx + markw
 	exth := offy + markh
