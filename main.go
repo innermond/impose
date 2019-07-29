@@ -36,6 +36,7 @@ var (
 	offset, offx, offy       float64
 	marksize, markw, markh   float64
 	booklet                  bool
+	creep                    float64
 )
 
 func param() error {
@@ -70,6 +71,7 @@ func param() error {
 	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
 	flag.BoolVar(&booklet, "booklet", false, "booklet signature")
+	flag.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
 
 	flag.Parse()
 
@@ -114,6 +116,10 @@ func param() error {
 			bleedy = bleed
 		case "booklet":
 			booklet = true
+			creep *= creator.PPMM
+			if creep > bleedx {
+				creep = bleedx
+			}
 		}
 	})
 
@@ -127,6 +133,10 @@ func param() error {
 	if fout == "" {
 		ext := path.Ext(fn)
 		fout = fn[:len(fn)-len(ext)] + postfix + ext
+	}
+
+	if !booklet {
+		creep = 0.0
 	}
 
 	return err
@@ -280,7 +290,7 @@ func main() {
 	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 	cros2b := cropbk.Create()
 
-	bb.Impose(flow, np, angle, pxp, pdfReader, c, cros2b)
+	bb.Impose(flow, np, angle, pxp, pdfReader, c, cros2b, booklet, creep)
 
 	err = c.WriteToFile(fout)
 	if err != nil {

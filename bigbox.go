@@ -137,13 +137,13 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 	return
 }
 
-func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block) {
+func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64) {
 	// start imposition
 	var (
-		sheet, pg *model.PdfPage
-		bk        *creator.Block
-		i, j      int
-
+		sheet, pg  *model.PdfPage
+		bk         *creator.Block
+		i, j       int
+		dx         float64
 		nextPage   bool
 		col, row   = bb.Col, bb.Row
 		left, top  = bb.Big.Left, bb.Big.Top
@@ -152,6 +152,10 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 		maxOnPage  = col * row
 		num        int
 	)
+
+	if booklet {
+		dx = creep / float64(np/4)
+	}
 
 	sheet = model.NewPdfPage()
 	sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
@@ -231,7 +235,22 @@ grid:
 						yposy += h
 					}
 				}
-				bk.Clip(4, 0, bk.Width()-4, bk.Height())
+				if !booklet {
+					bk.Clip(0, 0, bk.Width(), bk.Height(), true)
+				} else {
+					if (i-1)%4 == 0 {
+						dx += dx
+					}
+					direction := 0.0
+					if i%2 == 0 {
+						direction = -1.0
+					} else {
+						direction = 1.0
+					}
+					xposx += direction * dx
+					fmt.Println(i, xposx)
+					bk.Clip(dx, 0, bk.Width()-dx, bk.Height(), true)
+				}
 				// layout page
 				bk.SetPos(xposx, yposy)
 				_ = c.Draw(bk)
