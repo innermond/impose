@@ -143,7 +143,7 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 		sheet, pg  *model.PdfPage
 		bk         *creator.Block
 		i, j       int
-		dx         float64
+		dt, step   float64
 		nextPage   bool
 		col, row   = bb.Col, bb.Row
 		left, top  = bb.Big.Left, bb.Big.Top
@@ -154,7 +154,7 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 	)
 
 	if booklet {
-		dx = creep / float64(np/4)
+		step = creep / float64(np/4)
 	}
 
 	sheet = model.NewPdfPage()
@@ -238,8 +238,8 @@ grid:
 				if !booklet {
 					bk.Clip(0, 0, bk.Width(), bk.Height(), true)
 				} else {
-					if (i-1)%4 == 0 {
-						dx += dx
+					if i > 4 && (i-1)%4 == 0 {
+						dt += step
 					}
 					direction := 0.0
 					if i%2 == 0 {
@@ -247,9 +247,21 @@ grid:
 					} else {
 						direction = 1.0
 					}
-					xposx += direction * dx
-					fmt.Println(i, xposx)
-					bk.Clip(dx, 0, bk.Width()-dx, bk.Height(), true)
+
+					switch angle {
+					case 0.0:
+						xposx += direction * dt
+						bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), true)
+					case -90, 270:
+						yposy += direction * dt
+						bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), true)
+					case 90, -270:
+						yposy += direction * dt
+						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), true)
+					case 180, -180:
+						xposx += direction * dt
+						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), true)
+					}
 				}
 				// layout page
 				bk.SetPos(xposx, yposy)
