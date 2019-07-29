@@ -1,4 +1,4 @@
-module github.com/innermond/cobai/pdf
+module github.com/innermond/impose
 
 go 1.12
 
@@ -11,4 +11,4 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 )
 
-replace github.com/unidoc/unipdf/v3 v3.0.3 => ../../unipdf
+replace github.com/unidoc/unipdf/v3 v3.0.3 => ../unipdf
