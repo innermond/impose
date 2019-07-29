@@ -236,7 +236,7 @@ grid:
 					}
 				}
 				if !booklet {
-					bk.Clip(0, 0, bk.Width(), bk.Height(), true)
+					bk.Clip(0, 0, bk.Width(), bk.Height(), false)
 				} else {
 					if i > 4 && (i-1)%4 == 0 {
 						dt += step
@@ -251,16 +251,16 @@ grid:
 					switch angle {
 					case 0.0:
 						xposx += direction * dt
-						bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), true)
+						bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), false)
 					case -90, 270:
 						yposy += direction * dt
-						bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), true)
+						bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), false)
 					case 90, -270:
 						yposy += direction * dt
-						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), true)
+						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), false)
 					case 180, -180:
 						xposx += direction * dt
-						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), true)
+						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), false)
 					}
 				}
 				// layout page
