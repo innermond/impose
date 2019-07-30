@@ -65,9 +65,9 @@ func param() error {
 	flag.Float64Var(&offset, "offset", 2.0, "distance cut mark keeps from the last edge")
 	flag.Float64Var(&offx, "offx", 2.0, " axe x distance cut mark keeps from the last edge")
 	flag.Float64Var(&offy, "offy", 2.0, " axe y distance cut mark keeps from the last edge")
-	flag.Float64Var(&bleed, "bleed", 2.0, "distance cut mark has been given in respect to the last edge")
-	flag.Float64Var(&bleedx, "bleedx", 2.0, "axe x distance cut mark has been given in respect to the last edge")
-	flag.Float64Var(&bleedy, "bleedy", 2.0, "axe y distance cut mark has been given in respect to the last edge")
+	flag.Float64Var(&bleed, "bleed", 0.0, "distance cut mark has been given in respect to the last edge")
+	flag.Float64Var(&bleedx, "bleedx", 0.0, "axe x distance cut mark has been given in respect to the last edge")
+	flag.Float64Var(&bleedy, "bleedy", 0.0, "axe y distance cut mark has been given in respect to the last edge")
 	flag.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
 	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
@@ -222,13 +222,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	adjustMediaBox(page, bleedx, bleedy)
 	bbox, err := page.GetMediaBox()
 	if err != nil {
 		log.Fatal(err)
 	}
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
-	fmt.Println(w, h, bbox)
+
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
 	bb := &Boxes{bigbox, smallbox, col, row}
@@ -244,7 +245,6 @@ func main() {
 	if centery {
 		bb.AdjustMarginCenteringAlongHeight()
 	}
-
 	// guess the grid
 	if grid == "" {
 		col, row := bb.GuessGrid()
@@ -340,4 +340,43 @@ func floor63(v float64, p ...int) float64 {
 	}
 	n := math.Pow10(a)
 	return math.Floor(v*n) / n
+}
+
+func adjustMediaBox(page *pdf.PdfPage, bleedx, bleedy float64) {
+	// TrimBox is the final page
+	tbox, err := page.GetBox("TrimBox")
+	if err != nil {
+		cbox, err := page.GetBox("CropBox")
+		if err == nil {
+			tbox = cbox
+			page.TrimBox = cbox
+		} else {
+			// no trimbox or cropbox
+			// only mediabox so dont adjust
+			return
+		}
+	}
+	// MediaBox = TrimBox + bleed
+	mbox := &pdf.PdfRectangle{}
+	mbox.Llx = tbox.Llx - bleedx
+	mbox.Lly = tbox.Lly - bleedy
+	mbox.Urx = tbox.Urx + bleedx
+	mbox.Ury = tbox.Ury + bleedy
+
+	mediabox, err := page.GetMediaBox()
+	// what?? we have at least a cropbox or a trimbox but not a mediabox???
+	if err != nil {
+		return
+	}
+
+	// do not exceed unadjusted real mediabox
+	// mediabox width smaller than adjusted mbox width
+	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
+		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
+		// use mediabox
+		mbox = mediabox
+	}
+	// adjust
+	page.MediaBox = mbox
+
 }

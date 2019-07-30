@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/unidoc/unipdf/v3/creator"
@@ -78,12 +79,17 @@ func (bb *Boxes) SwitchGrid() {
 	bb.Small.Switch()
 }
 
+// threshold to compare aproximating floating values
+const epsilon = 1e-9
+
 func (bb *Boxes) EnoughWidth() bool {
-	return bb.Big.AvailableWidth() >= float64(bb.Col)*bb.Small.Width
+	dif := bb.Big.AvailableWidth() - float64(bb.Col)*bb.Small.Width
+	return math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	return bb.Big.AvailableHeight() >= float64(bb.Row)*bb.Small.Height
+	dif := bb.Big.AvailableHeight() - float64(bb.Row)*bb.Small.Height
+	return math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) ParseFlow(flow string) ([]int, error) {
@@ -119,16 +125,17 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 		if !stopCountingCol {
 			col++
 		}
-		endx = floor63(xpos + float64(bb.Small.Width))
-		peakx = floor63(bb.Big.AvailableWidth())
-		if endx > peakx {
+		endx = xpos + float64(bb.Small.Width)
+		peakx = bb.Big.AvailableWidth()
+		//	float64 endx > peakx
+		if math.Abs(endx-peakx) > epsilon {
 			stopCountingCol = true
 			xpos = bb.Big.Left
 			ypos += float64(bb.Small.Height)
-			endy = floor63(ypos + float64(bb.Small.Height))
-			peaky = floor63(bb.Big.AvailableHeight())
+			endy = ypos + float64(bb.Small.Height)
+			peaky = bb.Big.AvailableHeight()
 			row++
-			if endy > peaky {
+			if math.Abs(endy-peaky) > epsilon {
 				break
 			}
 		}
@@ -215,6 +222,7 @@ grid:
 				if err != nil {
 					log.Fatal(err)
 				}
+				adjustMediaBox(pg, bleedx, bleedy)
 				bk, err = creator.NewBlockFromPage(pg)
 				if err != nil {
 					log.Fatal(err)
