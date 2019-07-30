@@ -37,6 +37,7 @@ var (
 	marksize, markw, markh   float64
 	booklet                  bool
 	creep                    float64
+	outline                  bool
 )
 
 func param() error {
@@ -72,6 +73,7 @@ func param() error {
 	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
 	flag.BoolVar(&booklet, "booklet", false, "booklet signature")
 	flag.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
+	flag.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 
 	flag.Parse()
 
@@ -226,7 +228,7 @@ func main() {
 	}
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
-
+	fmt.Println(w, h, bbox)
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
 	bb := &Boxes{bigbox, smallbox, col, row}
@@ -290,7 +292,7 @@ func main() {
 	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 	cros2b := cropbk.Create()
 
-	bb.Impose(flow, np, angle, pxp, pdfReader, c, cros2b, booklet, creep)
+	bb.Impose(flow, np, angle, pxp, pdfReader, c, cros2b, booklet, creep, outline)
 
 	err = c.WriteToFile(fout)
 	if err != nil {

@@ -137,7 +137,7 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 	return
 }
 
-func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64) {
+func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool) {
 	// start imposition
 	var (
 		sheet, pg  *model.PdfPage
@@ -236,7 +236,7 @@ grid:
 					}
 				}
 				if !booklet {
-					bk.Clip(0, 0, bk.Width(), bk.Height(), false)
+					bk.Clip(0, 0, bk.Width(), bk.Height(), outline)
 				} else {
 					if i > 4 && (i-1)%4 == 0 {
 						dt += step
@@ -251,16 +251,16 @@ grid:
 					switch angle {
 					case 0.0:
 						xposx += direction * dt
-						bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), false)
+						bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), outline)
 					case -90, 270:
 						yposy += direction * dt
-						bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), false)
+						bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), outline)
 					case 90, -270:
 						yposy += direction * dt
-						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), false)
+						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), outline)
 					case 180, -180:
 						xposx += direction * dt
-						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), false)
+						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), outline)
 					}
 				}
 				// layout page
