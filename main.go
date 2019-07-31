@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"path"
 	"strconv"
@@ -25,7 +24,6 @@ var (
 	unit                     string
 	top, left, bottom, right float64
 	center, centerx, centery bool
-	lessPagesNum             int
 	pages                    string
 	postfix                  string
 	samepage                 int
@@ -55,7 +53,6 @@ func param() error {
 	flag.BoolVar(&center, "center", false, "center along sheet axes")
 	flag.BoolVar(&centerx, "centerx", false, "center along sheet width")
 	flag.BoolVar(&centery, "centery", false, "center along sheet height")
-	flag.IntVar(&lessPagesNum, "less", 0, "number of pages to be subject of imposition")
 	flag.StringVar(&pages, "pages", "", "pages requested by imposition")
 	flag.StringVar(&postfix, "postfix", "imposition", "final page termination")
 	flag.IntVar(&samepage, "samepage", 0, "page chosen to repeat")
@@ -159,37 +156,47 @@ func main() {
 		log.Fatal(err)
 	}
 	defer f.Close()
-
+	// read first pdf page
 	pdfReader, err := pdf.NewPdfReader(f)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	// establish pages number
 	np, err := pdfReader.GetNumPages()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	if lessPagesNum > 0 && lessPagesNum < np {
-		np = lessPagesNum
-	}
-
 	// from 1 to last
 	if pages == "" {
 		pages = fmt.Sprintf("1-%d", np)
 	}
-
 	// get pages for imposition
 	sel := pange.Selection(pages)
 	ppp, err := sel.Split()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// all pages as a slice of ints
-	pxp, err := sel.Full(ppp...)
+	pagInts, err := sel.Full(ppp...)
 	if err != nil {
 		log.Fatal(err)
+	}
+	np = len(pagInts)
+
+	// booklet need  certain grid and page order
+	if booklet {
+		if len(pagInts)%4 != 0 {
+			log.Fatalf("number of pages %d is not divisible with 4", len(pagInts))
+		}
+		grid = "2x1"
+		book := []int{}
+		// rearange ppp suitable for booklet signature
+		for len(pagInts) > 0 {
+			z, a, b, y := pagInts[len(pagInts)-1], pagInts[0], pagInts[1], pagInts[len(pagInts)-2]
+			book = append(book, z, a, b, y)
+			pagInts = pagInts[2 : len(pagInts)-2]
+		}
+		pagInts = book
 	}
 
 	var (
@@ -197,11 +204,8 @@ func main() {
 		row int = 1
 	)
 
-	if booklet {
-		grid = "2x1"
-	}
 	// parse grid; has form like 2x1, at minimum 3 chars
-	if len(grid) > 2 {
+	if len(grid) > 2 && strings.Contains(grid, "x") {
 		colrow := strings.Split(grid, "x")
 		if len(colrow) != 2 {
 			log.Fatal(errors.New("grid length invalid"))
@@ -232,7 +236,7 @@ func main() {
 
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
-	bb := &Boxes{bigbox, smallbox, col, row}
+	bb := &Boxes{bigbox, smallbox, col, row, np}
 
 	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
 		bb.SwitchGrid()
@@ -256,32 +260,12 @@ func main() {
 	col, row = bb.Col, bb.Row
 	h, w = bb.Small.Height, bb.Small.Width
 
-	// rearange ppp suitable for booklet signature
-	if booklet {
-		if len(pxp)%4 != 0 {
-			log.Fatalf("number of pages %d is not divisible with 4", len(pxp))
-		}
-		book := []int{}
-		for len(pxp) > 0 {
-			z, a, b, y := pxp[len(pxp)-1], pxp[0], pxp[1], pxp[len(pxp)-2]
-			book = append(book, z, a, b, y)
-			pxp = pxp[2 : len(pxp)-2]
-		}
-		pxp = book
-	}
-
 	// check if media is enough
 	if !bb.EnoughWidth() {
 		log.Fatalf("%d columns do not fit", bb.Col)
 	}
 	if !bb.EnoughHeight() {
 		log.Fatalf("%d rows do not fit", bb.Row)
-	}
-
-	// clamp number of pages
-	np = len(pxp)
-	if lessPagesNum > 0 && lessPagesNum < np {
-		np = lessPagesNum
 	}
 
 	c := creator.New()
@@ -292,7 +276,7 @@ func main() {
 	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 	cros2b := cropbk.Create()
 
-	bb.Impose(flow, np, angle, pxp, pdfReader, c, cros2b, booklet, creep, outline)
+	bb.Impose(flow, np, angle, pagInts, pdfReader, c, cros2b, booklet, creep, outline, bleedx, bleedy)
 
 	err = c.WriteToFile(fout)
 	if err != nil {
@@ -303,80 +287,4 @@ func main() {
 
 	log.Printf("time taken %v\n", elapsed)
 	log.Printf("file %s written\n", fout)
-}
-
-func getFlowAsInts(ss []string, max int) (list []int, err error) {
-	keys := make(map[int]bool)
-	var (
-		i int
-		e string
-	)
-	for _, e = range ss {
-		i, err = strconv.Atoi(e)
-		if err != nil {
-			return
-		}
-		if i > max {
-			err = fmt.Errorf("max flow is %d element %d unacceptable", max, i)
-			return
-		}
-		if _, ok := keys[i]; !ok {
-			keys[i] = true
-			list = append(list, i)
-		}
-	}
-	return
-}
-
-// round floor to floor
-// go has a quirks regarding floor numbers
-// identical numbers may have their remote decimals different
-// so comparing them for equality is compromised
-// but we restore order by keeping only a specified number of decimals
-func floor63(v float64, p ...int) float64 {
-	a := 2
-	if len(p) > 0 {
-		a = p[0]
-	}
-	n := math.Pow10(a)
-	return math.Floor(v*n) / n
-}
-
-func adjustMediaBox(page *pdf.PdfPage, bleedx, bleedy float64) {
-	// TrimBox is the final page
-	tbox, err := page.GetBox("TrimBox")
-	if err != nil {
-		cbox, err := page.GetBox("CropBox")
-		if err == nil {
-			tbox = cbox
-			page.TrimBox = cbox
-		} else {
-			// no trimbox or cropbox
-			// only mediabox so dont adjust
-			return
-		}
-	}
-	// MediaBox = TrimBox + bleed
-	mbox := &pdf.PdfRectangle{}
-	mbox.Llx = tbox.Llx - bleedx
-	mbox.Lly = tbox.Lly - bleedy
-	mbox.Urx = tbox.Urx + bleedx
-	mbox.Ury = tbox.Ury + bleedy
-
-	mediabox, err := page.GetMediaBox()
-	// what?? we have at least a cropbox or a trimbox but not a mediabox???
-	if err != nil {
-		return
-	}
-
-	// do not exceed unadjusted real mediabox
-	// mediabox width smaller than adjusted mbox width
-	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
-		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
-		// use mediabox
-		mbox = mediabox
-	}
-	// adjust
-	page.MediaBox = mbox
-
 }

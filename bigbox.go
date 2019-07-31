@@ -38,6 +38,7 @@ type Boxes struct {
 	Big      *BigBox
 	Small    *SmallBox
 	Col, Row int
+	Num      int
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
@@ -144,7 +145,7 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 	return
 }
 
-func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool) {
+func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool, bleedx, bleedy float64) {
 	// start imposition
 	var (
 		sheet, pg  *model.PdfPage
@@ -152,14 +153,16 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 		i, j       int
 		dt, step   float64
 		nextPage   bool
-		col, row   = bb.Col, bb.Row
-		left, top  = bb.Big.Left, bb.Big.Top
-		w, h       = bb.Small.Width, bb.Small.Height
 		xpos, ypos = left, top
-		maxOnPage  = col * row
 		num        int
 	)
-
+	// proxy variables
+	var (
+		col, row  = bb.Col, bb.Row
+		maxOnPage = col * row
+		left, top = bb.Big.Left, bb.Big.Top
+		w, h      = bb.Small.Width, bb.Small.Height
+	)
 	if booklet {
 		step = creep / float64(np/4)
 	}
