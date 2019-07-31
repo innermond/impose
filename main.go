@@ -13,7 +13,7 @@ import (
 
 	"github.com/innermond/pange"
 	"github.com/unidoc/unipdf/v3/creator"
-	pdf "github.com/unidoc/unipdf/v3/model"
+	"github.com/unidoc/unipdf/v3/model"
 )
 
 var (
@@ -157,7 +157,7 @@ func main() {
 	}
 	defer f.Close()
 	// read first pdf page
-	pdfReader, err := pdf.NewPdfReader(f)
+	pdfReader, err := model.NewPdfReader(f)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -183,22 +183,7 @@ func main() {
 	}
 	np = len(pagInts)
 
-	// booklet need  certain grid and page order
-	if booklet {
-		if len(pagInts)%4 != 0 {
-			log.Fatalf("number of pages %d is not divisible with 4", len(pagInts))
-		}
-		grid = "2x1"
-		book := []int{}
-		// rearange ppp suitable for booklet signature
-		for len(pagInts) > 0 {
-			z, a, b, y := pagInts[len(pagInts)-1], pagInts[0], pagInts[1], pagInts[len(pagInts)-2]
-			book = append(book, z, a, b, y)
-			pagInts = pagInts[2 : len(pagInts)-2]
-		}
-		pagInts = book
-	}
-
+	// grid
 	var (
 		col int = 1
 		row int = 1
@@ -221,6 +206,23 @@ func main() {
 		}
 	}
 
+	// booklet need  certain grid and page order
+	if booklet {
+		if len(pagInts)%4 != 0 {
+			log.Fatalf("number of pages %d is not divisible with 4", len(pagInts))
+		}
+		grid = "2x1"
+		col, row = 2, 1
+		book := []int{}
+		// rearange ppp suitable for booklet signature
+		for len(pagInts) > 0 {
+			z, a, b, y := pagInts[len(pagInts)-1], pagInts[0], pagInts[1], pagInts[len(pagInts)-2]
+			book = append(book, z, a, b, y)
+			pagInts = pagInts[2 : len(pagInts)-2]
+		}
+		pagInts = book
+	}
+
 	// assume all pages has the same dimensions as first one
 	page, err := pdfReader.GetPage(1)
 	if err != nil {
@@ -233,6 +235,10 @@ func main() {
 	}
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
+
+	// blank page
+	blankPage := model.NewPdfPage()
+	blankPage.MediaBox = bbox
 
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
@@ -268,6 +274,7 @@ func main() {
 		log.Fatalf("%d rows do not fit", bb.Row)
 	}
 
+	// create a sheet page
 	c := creator.New()
 	c.SetPageSize(creator.PageSize{width, height})
 	// cropmarks adds extra to dimensions
@@ -276,7 +283,14 @@ func main() {
 	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 	cros2b := cropbk.Create()
 
-	bb.Impose(flow, np, angle, pagInts, pdfReader, c, cros2b, booklet, creep, outline, bleedx, bleedy)
+	bb.Impose(flow, np, angle,
+		pagInts,
+		pdfReader, c,
+		cros2b,
+		booklet, creep,
+		outline,
+		bleedx, bleedy,
+		blankPage)
 
 	err = c.WriteToFile(fout)
 	if err != nil {

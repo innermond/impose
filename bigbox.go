@@ -145,7 +145,7 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 	return
 }
 
-func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool, bleedx, bleedy float64) {
+func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool, bleedx, bleedy float64, blankPage *model.PdfPage) {
 	// start imposition
 	var (
 		sheet, pg  *model.PdfPage
@@ -221,9 +221,14 @@ grid:
 				}
 
 				// import page
-				pg, err = pdfReader.GetPage(num)
-				if err != nil {
-					log.Fatal(err)
+				if num != 0 {
+					pg, err = pdfReader.GetPage(num)
+					if err != nil {
+						log.Fatal(err)
+					}
+				} else {
+					pg = blankPage
+
 				}
 				adjustMediaBox(pg, bleedx, bleedy)
 				bk, err = creator.NewBlockFromPage(pg)
