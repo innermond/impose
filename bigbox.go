@@ -85,12 +85,12 @@ const epsilon = 1e-9
 
 func (bb *Boxes) EnoughWidth() bool {
 	dif := bb.Big.AvailableWidth() - float64(bb.Col)*bb.Small.Width
-	return math.Abs(dif) < epsilon
+	return dif > 0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) EnoughHeight() bool {
 	dif := bb.Big.AvailableHeight() - float64(bb.Row)*bb.Small.Height
-	return math.Abs(dif) < epsilon
+	return dif > 0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) ParseFlow(flow string) ([]int, error) {
@@ -294,4 +294,5 @@ grid:
 	}
 	// put cropmarks for the last sheet
 	c.Draw(cros2b)
+	fmt.Print("\n")
 }

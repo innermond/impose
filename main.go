@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/innermond/impose/booklet"
 	"github.com/innermond/pange"
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
@@ -33,7 +34,7 @@ var (
 	bleed, bleedx, bleedy    float64
 	offset, offx, offy       float64
 	marksize, markw, markh   float64
-	booklet                  bool
+	bookletMode              bool
 	creep                    float64
 	outline                  bool
 )
@@ -68,7 +69,7 @@ func param() error {
 	flag.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
 	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
-	flag.BoolVar(&booklet, "booklet", false, "booklet signature")
+	flag.BoolVar(&bookletMode, "booklet", false, "booklet signature")
 	flag.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
 	flag.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 
@@ -113,8 +114,8 @@ func param() error {
 		case "bleed":
 			bleedx = bleed
 			bleedy = bleed
-		case "booklet":
-			booklet = true
+		case "bookletMode":
+			bookletMode = true
 			creep *= creator.PPMM
 			if creep > bleedx {
 				creep = bleedx
@@ -134,7 +135,7 @@ func param() error {
 		fout = fn[:len(fn)-len(ext)] + postfix + ext
 	}
 
-	if !booklet {
+	if !bookletMode {
 		creep = 0.0
 	}
 
@@ -206,21 +207,19 @@ func main() {
 		}
 	}
 
-	// booklet need  certain grid and page order
-	if booklet {
+	// bookletMode need  certain grid and page order
+	if bookletMode {
 		if len(pagInts)%4 != 0 {
-			log.Fatalf("number of pages %d is not divisible with 4", len(pagInts))
+			log.Fatalf("number of pages %d is not divisible with 4", np)
 		}
-		grid = "2x1"
-		col, row = 2, 1
-		book := []int{}
-		// rearange ppp suitable for booklet signature
-		for len(pagInts) > 0 {
-			z, a, b, y := pagInts[len(pagInts)-1], pagInts[0], pagInts[1], pagInts[len(pagInts)-2]
-			book = append(book, z, a, b, y)
-			pagInts = pagInts[2 : len(pagInts)-2]
+		if grid == "" {
+			grid = "2x1"
+			col, row = 2, 1
 		}
-		pagInts = book
+		pagInts, err = booklet.Arrange(col, row, pagInts)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// assume all pages has the same dimensions as first one
@@ -287,7 +286,7 @@ func main() {
 		pagInts,
 		pdfReader, c,
 		cros2b,
-		booklet, creep,
+		bookletMode, creep,
 		outline,
 		bleedx, bleedy,
 		blankPage)
