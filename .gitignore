@@ -4,6 +4,6 @@
 *.json
 *.z
 *.map
-impose
+impose*
 tmp
 

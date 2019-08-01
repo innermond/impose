@@ -235,10 +235,6 @@ func main() {
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
-	// blank page
-	blankPage := model.NewPdfPage()
-	blankPage.MediaBox = bbox
-
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
 	bb := &Boxes{bigbox, smallbox, col, row, np}
@@ -289,7 +285,7 @@ func main() {
 		bookletMode, creep,
 		outline,
 		bleedx, bleedy,
-		blankPage)
+	)
 
 	err = c.WriteToFile(fout)
 	if err != nil {
