@@ -177,6 +177,7 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 		log.Fatal(err)
 	}
 
+	iload := 10
 grid:
 	for {
 		for y := 0; y < row; y++ {
@@ -286,6 +287,11 @@ grid:
 		}
 		// the poor man's vizual indicator that something is happening
 		fmt.Print(".")
+		// clear all dots
+		if iload%10 == 0 {
+			fmt.Print("\r")
+		}
+		iload++
 	}
 	// put cropmarks for the last sheet
 	c.Draw(cros2b)
