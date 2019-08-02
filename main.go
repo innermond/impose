@@ -162,6 +162,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("read pdf of %q", fn)
 	// establish pages number
 	np, err := pdfReader.GetNumPages()
 	if err != nil {
@@ -222,6 +223,8 @@ func main() {
 		}
 	}
 
+	log.Println("parsed parameters")
+
 	// assume all pages has the same dimensions as first one
 	page, err := pdfReader.GetPage(1)
 	if err != nil {
@@ -268,6 +271,8 @@ func main() {
 	if !bb.EnoughHeight() {
 		log.Fatalf("%d rows do not fit", bb.Row)
 	}
+
+	log.Println("prepared boxes")
 
 	// create a sheet page
 	c := creator.New()

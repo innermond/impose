@@ -148,20 +148,21 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool, bleedx, bleedy float64) {
 	// start imposition
 	var (
-		sheet, pg  *model.PdfPage
-		bk         *creator.Block
-		i, j       int
-		dt, step   float64
-		nextPage   bool
-		xpos, ypos = left, top
-		num        int
+		sheet, pg                  *model.PdfPage
+		bk                         *creator.Block
+		i, j                       int
+		dt, step                   float64
+		nextSheet                  bool
+		xpos, ypos                 = left, top
+		num                        int
+		creepCount, nextSheetCount int
 	)
 	// proxy variables
 	var (
-		col, row  = bb.Col, bb.Row
-		maxOnPage = col * row
-		left, top = bb.Big.Left, bb.Big.Top
-		w, h      = bb.Small.Width, bb.Small.Height
+		col, row   = bb.Col, bb.Row
+		maxOnSheet = col * row
+		left, top  = bb.Big.Left, bb.Big.Top
+		w, h       = bb.Small.Width, bb.Small.Height
 	)
 	if booklet {
 		step = creep / float64(np/4)
@@ -170,6 +171,7 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 	sheet = model.NewPdfPage()
 	sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
 	c.AddPage(sheet)
+	nextSheetCount = 1
 
 	// parse flow
 	ff, err := bb.ParseFlow(flow)
@@ -197,10 +199,10 @@ grid:
 				num = pxp[num-1]
 
 				// check the need for a new page
-				if i >= maxOnPage {
-					nextPage = (maxOnPage+i)%maxOnPage == 0
+				if i >= maxOnSheet {
+					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
-				if nextPage {
+				if nextSheet {
 					// put cropmarks on sheet
 					c.Draw(cros2b)
 					// initialize position
@@ -209,8 +211,6 @@ grid:
 					sheet = model.NewPdfPage()
 					sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
 					c.AddPage(sheet)
-
-					nextPage = false
 				}
 
 				// count pages processed
@@ -250,9 +250,25 @@ grid:
 				if !booklet {
 					bk.Clip(0, 0, bk.Width(), bk.Height(), outline)
 				} else {
-					if i > 4 && (i-1)%4 == 0 {
-						dt += step
+					// time to check if block is front or verso
+					if i > 2 && (i-1)%2 == 0 {
+						if nextSheet {
+							nextSheetCount++
+							if nextSheetCount%2 == 0 {
+								dt -= float64(creepCount) * step
+							} else {
+								dt += step
+							}
+							// reset counter
+							creepCount = 0
+						} else {
+							creepCount++
+							dt += step
+						}
 					}
+					/*if i > 4 && (i-1)%4 == 0 {
+						dt += step
+					}*/
 					direction := 0.0
 					if i%2 == 0 {
 						direction = -1.0
@@ -280,6 +296,9 @@ grid:
 				_ = c.Draw(bk)
 
 				xpos += float64(w)
+				if nextSheet {
+					nextSheet = false
+				}
 			}
 			ypos += float64(h)
 			xpos = left
