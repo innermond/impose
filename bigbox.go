@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/cheggaaa/pb/v3"
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
 )
@@ -179,7 +180,7 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader
 		log.Fatal(err)
 	}
 
-	iload := 10
+	bar := pb.StartNew(np)
 grid:
 	for {
 		for y := 0; y < row; y++ {
@@ -299,20 +300,17 @@ grid:
 				if nextSheet {
 					nextSheet = false
 				}
+				bar.Increment()
 			}
 			ypos += float64(h)
 			xpos = left
 			j++
 		}
-		// the poor man's vizual indicator that something is happening
-		fmt.Print(".")
-		// clear all dots
-		if iload%10 == 0 {
-			fmt.Print("\r")
-		}
-		iload++
 	}
 	// put cropmarks for the last sheet
 	c.Draw(cros2b)
-	fmt.Print("\n")
+
+	bar.Finish()
+	// ring terminal bell once
+	fmt.Print("\a\n")
 }
