@@ -22,6 +22,8 @@ var (
 	fout                     string
 	width                    float64
 	height                   float64
+	autopage                 bool
+	autopadding              float64
 	unit                     string
 	top, left, bottom, right float64
 	center, centerx, centery bool
@@ -47,6 +49,8 @@ func param() error {
 	flag.StringVar(&fout, "o", "", "imposition pdf file")
 	flag.Float64Var(&width, "width", 320.0, "imposition sheet width")
 	flag.Float64Var(&height, "height", 450.0, "imposition sheet height")
+	flag.BoolVar(&autopage, "autopage", false, "calculate proper dimensions for imposition sheet")
+	flag.Float64Var(&autopadding, "autopadding", 2.0, "padding arround imposition")
 	flag.StringVar(&unit, "unit", "mm", "unit of measurements")
 	flag.Float64Var(&top, "top", 0.0, "top margin")
 	flag.Float64Var(&left, "left", 0.0, "left margin")
@@ -97,6 +101,7 @@ func param() error {
 	marksize *= creator.PPMM
 	markw *= creator.PPMM
 	markh *= creator.PPMM
+	autopadding *= creator.PPMM
 
 	flag.Visit(func(f *flag.Flag) {
 		switch f.Name {
@@ -124,6 +129,8 @@ func param() error {
 			}
 		case "nocropmark":
 			showcropmark = false
+		case "autopage":
+			autopage = true
 		}
 	})
 
@@ -141,6 +148,10 @@ func param() error {
 
 	if !bookletMode {
 		creep = 0.0
+	}
+
+	if !autopage {
+		autopadding = 0.0
 	}
 
 	return err
@@ -242,12 +253,26 @@ func main() {
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
+	// cropmarks adds extra to dimensions
+	extw := offx + markw
+	exth := offy + markh
+
+	beSwitched := angle == 90.0 || angle == -90 || angle == 270 || angle == -270
+	if autopage {
+		width = left + float64(col)*w + right + 2*extw + 2*autopadding
+		height = top + float64(row)*h + bottom + 2*exth + 2*autopadding
+		if beSwitched {
+			width = left + float64(row)*h + right + 2*extw + 2*autopadding
+			height = top + float64(col)*w + bottom + 2*exth + 2*autopadding
+		}
+	}
+
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
 	bb := &Boxes{bigbox, smallbox, col, row, np}
 
 	angled := false
-	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
+	if beSwitched {
 		bb.SwitchGrid()
 		angled = true
 	}
@@ -286,12 +311,10 @@ func main() {
 
 	var cros2b *creator.Block
 	if showcropmark {
-		// cropmarks adds extra to dimensions
-		extw := offx + markw
-		exth := offy + markh
 		cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 		cros2b = cropbk.Create(bookletMode, angled)
 	}
+
 	bb.Impose(flow, np, angle,
 		pagInts,
 		pdfReader, c,
