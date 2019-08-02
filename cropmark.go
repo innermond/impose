@@ -1,6 +1,8 @@
 package main
 
-import "github.com/unidoc/unipdf/v3/creator"
+import (
+	"github.com/unidoc/unipdf/v3/creator"
+)
 
 type CropMarkBlock struct {
 	w, h, bleedx, bleedy float64
@@ -9,7 +11,7 @@ type CropMarkBlock struct {
 	c                    *creator.Creator
 }
 
-func (bk *CropMarkBlock) Create() *creator.Block {
+func (bk *CropMarkBlock) Create(bookletMode bool, onY bool) *creator.Block {
 	w, h, bleedx, bleedy, col, row, extw, exth := bk.w, bk.h, bk.bleedx, bk.bleedy, bk.col, bk.row, bk.extw, bk.exth
 	c := bk.c
 	// extended to enncompass cropmarks
@@ -22,27 +24,42 @@ func (bk *CropMarkBlock) Create() *creator.Block {
 	// the width used for cropmark
 	lw := 0.4 * creator.PPMM // points
 
-	// create top line of cropmarks and left line
+	// used to skip creation of marks in between when booklet
+	// values 0 and 1 are because marks are created in pair
+	between := 2
+	// create top line of cropmarks
+	for x := 0; x < col; x++ {
+		if bookletMode && !onY {
+			between = (x + 2) % 2
+		}
+		// top line with space for cropmark
+		if between == 0 || between == 2 {
+			l := c.NewLine(float64(x)*w+bleedx-0.5*lw+extw, 0, float64(x)*w+bleedx-0.5*lw+extw, markh)
+			l.SetLineWidth(lw)
+			crosb.Draw(l)
+		}
+		if between == 1 || between == 2 {
+			l := c.NewLine(float64(x+1)*w-bleedx-0.5*lw+extw, 0, float64(x+1)*w-bleedx-0.5*lw+extw, markh)
+			l.SetLineWidth(lw)
+			crosb.Draw(l)
+		}
+	}
+	// create cropmarks left line
 	for y := 0; y < row; y++ {
-		for x := 0; x < col; x++ {
-			if y == 0 {
-				// top line with space for cropmark
-				l := c.NewLine(float64(x)*w+bleedx-0.5*lw+extw, 0, float64(x)*w+bleedx-0.5*lw+extw, markh)
-				l.SetLineWidth(lw)
-				crosb.Draw(l)
-				l = c.NewLine(float64(x+1)*w-bleedx-0.5*lw+extw, 0, float64(x+1)*w-bleedx-0.5*lw+extw, markh)
-				l.SetLineWidth(lw)
-
-				crosb.Draw(l)
-			}
+		if bookletMode && onY {
+			between = (y + 2) % 2
 		}
 		// left line with space for cropmark
-		l := c.NewLine(0, float64(y)*h+bleedy+0.5*lw+exth, markw, float64(y)*h+bleedy+0.5*lw+exth)
-		l.SetLineWidth(lw)
-		crosb.Draw(l)
-		l = c.NewLine(0, float64(y+1)*h-bleedy+0.5*lw+exth, markw, float64(y+1)*h-bleedy+0.5*lw+exth)
-		l.SetLineWidth(lw)
-		crosb.Draw(l)
+		if between == 0 || between == 2 {
+			l := c.NewLine(0, float64(y)*h+bleedy+0.5*lw+exth, markw, float64(y)*h+bleedy+0.5*lw+exth)
+			l.SetLineWidth(lw)
+			crosb.Draw(l)
+		}
+		if between == 1 || between == 2 {
+			l := c.NewLine(0, float64(y+1)*h-bleedy+0.5*lw+exth, markw, float64(y+1)*h-bleedy+0.5*lw+exth)
+			l.SetLineWidth(lw)
+			crosb.Draw(l)
+		}
 	}
 
 	// use the half of cropmarks block created and a rotated duplicate of it

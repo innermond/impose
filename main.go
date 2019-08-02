@@ -246,8 +246,10 @@ func main() {
 	smallbox := &SmallBox{&Box{Width: w, Height: h}}
 	bb := &Boxes{bigbox, smallbox, col, row, np}
 
+	angled := false
 	if angle == 90.0 || angle == -90 || angle == 270 || angle == -270 {
 		bb.SwitchGrid()
+		angled = true
 	}
 
 	// centering by changing margins
@@ -288,7 +290,7 @@ func main() {
 		extw := offx + markw
 		exth := offy + markh
 		cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
-		cros2b = cropbk.Create()
+		cros2b = cropbk.Create(bookletMode, angled)
 	}
 	bb.Impose(flow, np, angle,
 		pagInts,
