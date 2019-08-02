@@ -205,7 +205,9 @@ grid:
 				}
 				if nextSheet {
 					// put cropmarks on sheet
-					c.Draw(cros2b)
+					if cros2b != nil {
+						c.Draw(cros2b)
+					}
 					// initialize position
 					ypos = top
 					//c.NewPage()
@@ -267,9 +269,6 @@ grid:
 							dt += step
 						}
 					}
-					/*if i > 4 && (i-1)%4 == 0 {
-						dt += step
-					}*/
 					direction := 0.0
 					if i%2 == 0 {
 						direction = -1.0
@@ -308,7 +307,9 @@ grid:
 		}
 	}
 	// put cropmarks for the last sheet
-	c.Draw(cros2b)
+	if cros2b != nil {
+		c.Draw(cros2b)
+	}
 
 	bar.Finish()
 	// ring terminal bell once

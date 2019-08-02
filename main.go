@@ -34,6 +34,7 @@ var (
 	bleed, bleedx, bleedy    float64
 	offset, offx, offy       float64
 	marksize, markw, markh   float64
+	showcropmark             bool
 	bookletMode              bool
 	creep                    float64
 	outline                  bool
@@ -69,6 +70,7 @@ func param() error {
 	flag.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
 	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
+	flag.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
 	flag.BoolVar(&bookletMode, "booklet", false, "booklet signature")
 	flag.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
 	flag.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
@@ -120,6 +122,8 @@ func param() error {
 			if creep > bleedx {
 				creep = bleedx
 			}
+		case "nocropmark":
+			showcropmark = false
 		}
 	})
 
@@ -277,12 +281,15 @@ func main() {
 	// create a sheet page
 	c := creator.New()
 	c.SetPageSize(creator.PageSize{width, height})
-	// cropmarks adds extra to dimensions
-	extw := offx + markw
-	exth := offy + markh
-	cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
-	cros2b := cropbk.Create()
 
+	var cros2b *creator.Block
+	if showcropmark {
+		// cropmarks adds extra to dimensions
+		extw := offx + markw
+		exth := offy + markh
+		cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
+		cros2b = cropbk.Create()
+	}
 	bb.Impose(flow, np, angle,
 		pagInts,
 		pdfReader, c,
