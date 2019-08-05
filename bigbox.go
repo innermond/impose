@@ -146,7 +146,11 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 	return
 }
 
-func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int, pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block, booklet bool, creep float64, outline bool, bleedx, bleedy float64) {
+func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int,
+	pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block,
+	booklet bool, creep float64,
+	outline bool, bleedx, bleedy float64,
+) {
 	// start imposition
 	var (
 		sheet, pg                  *model.PdfPage

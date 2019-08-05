@@ -30,6 +30,7 @@ var (
 	pages                    string
 	postfix                  string
 	samepage                 int
+	repeat                   bool
 	grid                     string
 	flow                     string
 	angle                    float64
@@ -62,6 +63,7 @@ func param() error {
 	flag.StringVar(&pages, "pages", "", "pages requested by imposition")
 	flag.StringVar(&postfix, "postfix", "imposition", "final page termination")
 	flag.IntVar(&samepage, "samepage", 0, "page chosen to repeat")
+	flag.BoolVar(&repeat, "repeat", false, "repeat every page on imposition sheet in respect to grid")
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
@@ -148,6 +150,8 @@ func param() error {
 
 	if !bookletMode {
 		creep = 0.0
+	} else {
+		repeat = false
 	}
 
 	if !autopage {
@@ -313,6 +317,18 @@ func main() {
 	if showcropmark {
 		cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
 		cros2b = cropbk.Create(bookletMode, angled)
+	}
+
+	if repeat {
+		numsheet := col * row
+		np *= numsheet
+		repeated := []int{}
+		for _, e := range pagInts {
+			for i := 0; i < numsheet; i++ {
+				repeated = append(repeated, e)
+			}
+		}
+		pagInts = repeated
 	}
 
 	bb.Impose(flow, np, angle,
