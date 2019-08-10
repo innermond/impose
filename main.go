@@ -17,6 +17,8 @@ import (
 	"github.com/unidoc/unipdf/v3/model"
 )
 
+const nothere string = "nothere"
+
 var (
 	fn                       string
 	fout                     string
@@ -33,6 +35,7 @@ var (
 	repeat                   bool
 	grid                     string
 	flow                     string
+	duplex                   string
 	angle                    float64
 	bleed, bleedx, bleedy    float64
 	offset, offx, offy       float64
@@ -66,6 +69,7 @@ func param() error {
 	flag.BoolVar(&repeat, "repeat", false, "repeat every page on imposition sheet in respect to grid")
 	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
+	flag.StringVar(&duplex, "duplex", nothere, "it reverses the flow for every even sheet - that represents page verso")
 	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
 	flag.Float64Var(&offset, "offset", 2.0, "distance cut mark keeps from the last edge")
 	flag.Float64Var(&offx, "offx", 2.0, " axe x distance cut mark keeps from the last edge")
@@ -133,11 +137,16 @@ func param() error {
 			showcropmark = false
 		case "autopage":
 			autopage = true
+		case "duplex":
+			if duplex == nothere {
+				duplex = "" // must be different than default in order to see when we set up this flag
+			}
+			samepage = 0
 		}
 	})
 
 	// last edge is further inside mediabox by bleed amount
-	// adjunst offsets otherwise they will be aware only by media edge
+	// adjunst offsets otherwise they will be aware only by media ed
 	offx -= bleedx
 	offy -= bleedy
 
@@ -330,8 +339,24 @@ func main() {
 		}
 		pagInts = repeated
 	}
+	// we have duplex but not explicit
+	if len(duplex) == 0 {
+		// reverse flow seen as 1 to col
+		if len(flow) == 0 {
+			for i := col; i > 0; i-- {
+				duplex += strconv.Itoa(i) + ","
+			}
+			duplex = duplex[0 : len(duplex)-1]
+		} else {
+			for i := len(flow); i > 0; i += 2 {
+				duplex += flow[i : i-1]
+			}
+		}
+	} else if duplex == nothere {
+		duplex = ""
+	}
 
-	bb.Impose(flow, np, angle,
+	bb.Impose(flow, duplex, np, angle,
 		pagInts,
 		pdfReader, c,
 		cros2b,
