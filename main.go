@@ -43,45 +43,158 @@ var (
 	outline                  bool
 )
 
+var (
+	fileFlags = map[string]bool{
+		"f":       true,
+		"o":       true,
+		"postfix": true,
+		"unit":    true,
+	}
+	geometryFlags = map[string]bool{
+		"width":       true,
+		"height":      true,
+		"top":         true,
+		"left":        true,
+		"bottom":      true,
+		"right":       true,
+		"autopage":    true,
+		"autopadding": true,
+	}
+	positionFlags = map[string]bool{
+		"center":  true,
+		"centerx": true,
+		"centery": true,
+		"angle":   true,
+	}
+	gridFlags = map[string]bool{
+		"grid":  true,
+		"flow":  true,
+		"pages": true,
+	}
+	markFlags = map[string]bool{
+		"offset":   true,
+		"offx":     true,
+		"offy":     true,
+		"bleed":    true,
+		"bleedy":   true,
+		"bleedx":   true,
+		"marksize": true,
+		"markw":    true,
+		"markh":    true,
+	}
+	viewFlags = map[string]bool{
+		"nocropmark": true,
+		"outline":    true,
+	}
+)
+
+func initFileFlags(flagset *flag.FlagSet) {
+	flagset.StringVar(&unit, "unit", "mm", "unit of measurements")
+	flagset.StringVar(&fn, "f", "", "source pdf file")
+	flagset.StringVar(&fout, "o", "", "imposition pdf file")
+	flagset.StringVar(&postfix, "postfix", "imposition", "final page termination")
+}
+
+func initGeometryFlags(flagset *flag.FlagSet) {
+	flagset.Float64Var(&width, "width", 320.0, "imposition sheet width")
+	flagset.Float64Var(&height, "height", 450.0, "imposition sheet height")
+	flagset.Float64Var(&top, "top", 0.0, "top margin")
+	flagset.Float64Var(&left, "left", 0.0, "left margin")
+	flagset.Float64Var(&bottom, "bottom", 0.0, "bottom margin")
+	flagset.Float64Var(&right, "right", 0.0, "right margin")
+	flagset.BoolVar(&autopage, "autopage", false, "calculate proper dimensions for imposition sheet")
+	flagset.Float64Var(&autopadding, "autopadding", 2.0, "padding arround imposition")
+}
+
+func initPositionFlags(flagset *flag.FlagSet) {
+	flagset.BoolVar(&center, "center", false, "center along sheet axes")
+	flagset.BoolVar(&centerx, "centerx", false, "center along sheet width")
+	flagset.BoolVar(&centery, "centery", false, "center along sheet height")
+	flagset.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
+}
+
+func initGridFlags(flagset *flag.FlagSet) {
+	flagset.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
+	flagset.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
+	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
+}
+
+func initMarkFlags(flagset *flag.FlagSet) {
+	flagset.Float64Var(&offset, "offset", 2.0, "distance cut mark keeps from the last edge")
+	flagset.Float64Var(&offx, "offx", 2.0, " axe x distance cut mark keeps from the last edge")
+	flagset.Float64Var(&offy, "offy", 2.0, " axe y distance cut mark keeps from the last edge")
+	flagset.Float64Var(&bleed, "bleed", 0.0, "distance cut mark has been given in respect to the last edge")
+	flagset.Float64Var(&bleedx, "bleedx", 0.0, "axe x distance cut mark has been given in respect to the last edge")
+	flagset.Float64Var(&bleedy, "bleedy", 0.0, "axe y distance cut mark has been given in respect to the last edge")
+	flagset.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
+	flagset.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
+	flagset.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
+}
+
+func initViewFlags(flagset *flag.FlagSet) {
+	flagset.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
+	flagset.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
+}
+
+func commonFlags() map[string]bool {
+	out := map[string]bool{}
+	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags}
+	for _, ff := range fff {
+		for flagname, val := range ff {
+			out[flagname] = val
+		}
+	}
+	return out
+}
+
 func param() error {
-	var err error
+	var (
+		err     error
+		flagset = flag.NewFlagSet("cli", flag.ExitOnError)
+		same    = []string{}
+		spec    = []string{}
+	)
 
-	flag.StringVar(&fn, "f", "", "source pdf file")
-	flag.StringVar(&fout, "o", "", "imposition pdf file")
-	flag.Float64Var(&width, "width", 320.0, "imposition sheet width")
-	flag.Float64Var(&height, "height", 450.0, "imposition sheet height")
-	flag.BoolVar(&autopage, "autopage", false, "calculate proper dimensions for imposition sheet")
-	flag.Float64Var(&autopadding, "autopadding", 2.0, "padding arround imposition")
-	flag.StringVar(&unit, "unit", "mm", "unit of measurements")
-	flag.Float64Var(&top, "top", 0.0, "top margin")
-	flag.Float64Var(&left, "left", 0.0, "left margin")
-	flag.Float64Var(&bottom, "bottom", 0.0, "bottom margin")
-	flag.Float64Var(&right, "right", 0.0, "right margin")
-	flag.BoolVar(&center, "center", false, "center along sheet axes")
-	flag.BoolVar(&centerx, "centerx", false, "center along sheet width")
-	flag.BoolVar(&centery, "centery", false, "center along sheet height")
-	flag.StringVar(&pages, "pages", "", "pages requested by imposition")
-	flag.StringVar(&postfix, "postfix", "imposition", "final page termination")
-	flag.IntVar(&samepage, "samepage", 0, "page chosen to repeat")
-	flag.BoolVar(&repeat, "repeat", false, "repeat every page on imposition sheet in respect to grid")
-	flag.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
-	flag.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
-	flag.Float64Var(&angle, "angle", 0.0, "angle to angle pages")
-	flag.Float64Var(&offset, "offset", 2.0, "distance cut mark keeps from the last edge")
-	flag.Float64Var(&offx, "offx", 2.0, " axe x distance cut mark keeps from the last edge")
-	flag.Float64Var(&offy, "offy", 2.0, " axe y distance cut mark keeps from the last edge")
-	flag.Float64Var(&bleed, "bleed", 0.0, "distance cut mark has been given in respect to the last edge")
-	flag.Float64Var(&bleedx, "bleedx", 0.0, "axe x distance cut mark has been given in respect to the last edge")
-	flag.Float64Var(&bleedy, "bleedy", 0.0, "axe y distance cut mark has been given in respect to the last edge")
-	flag.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
-	flag.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
-	flag.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
-	flag.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
-	flag.BoolVar(&bookletMode, "booklet", false, "booklet signature")
-	flag.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
-	flag.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
+	switch os.Args[1] {
+	case "repeat":
+		// ./impose repeat ...
+		same, spec = clivide(os.Args[2:], commonFlags())
+		repeat = true
+		// setup specifi flags then
+		// parse specific flag if any
+		flagset.Parse(spec)
+	case "samepage":
+		// ./impose samepage <pagenum> ...
+		same, spec = clivide(os.Args[3:], commonFlags())
+		samepage, err = strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
+		flagset.Parse(spec)
+	case "booklet":
+		// ./impose booklet -creep
+		same, spec = clivide(os.Args[2:], commonFlags())
+		bookletMode = true
+		// specific flag
+		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
+		flagset.Parse(spec)
+	default:
+		same, spec = clivide(os.Args[1:], commonFlags())
+		flagset.Parse(spec)
+	}
 
-	flag.Parse()
+	// TODO make then commands and wire up description when usage()
+	//flag.BoolVar(&repeat, "repeat", false, "repeat every page on imposition sheet in respect to grid")
+	//flag.BoolVar(&bookletMode, "booklet", false, "booklet signature")
+
+	// set common flags
+	initFileFlags(flagset)
+	initGeometryFlags(flagset)
+	initPositionFlags(flagset)
+	initGridFlags(flagset)
+	initMarkFlags(flagset)
+	initViewFlags(flagset)
+	flagset.Parse(same)
 
 	if fn == "" {
 		return errors.New("pdf file required")
@@ -105,7 +218,7 @@ func param() error {
 	markh *= creator.PPMM
 	autopadding *= creator.PPMM
 
-	flag.Visit(func(f *flag.Flag) {
+	flagset.Visit(func(f *flag.Flag) {
 		switch f.Name {
 		case "centerx":
 			centerx = true
@@ -135,7 +248,6 @@ func param() error {
 			autopage = true
 		}
 	})
-
 	// last edge is further inside mediabox by bleed amount
 	// adjunst offsets otherwise they will be aware only by media edge
 	offx -= bleedx
@@ -280,7 +392,6 @@ func main() {
 		bb.SwitchGrid()
 		angled = true
 	}
-
 	// centering by changing margins
 	if centerx {
 		bb.AdjustMarginCenteringAlongWidth()
