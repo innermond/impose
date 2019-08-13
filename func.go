@@ -85,6 +85,11 @@ func adjustMediaBox(page *pdf.PdfPage, bleedx, bleedy float64) {
 
 }
 
+func isFlag(fg string) bool {
+	is := len(fg) > 1 && fg[0] == '-' && fg[len(fg)-1] != '-'
+	return is
+}
+
 // divide a string slice, probably an os.Args[],
 // into two string slices as they were separated command line args
 func clivide(cli []string, comflags map[string]bool) (common, specific []string) {
@@ -96,7 +101,7 @@ func clivide(cli []string, comflags map[string]bool) (common, specific []string)
 		// current element
 		curr := cli[i]
 		// is flag?
-		if curr[0] == '-' {
+		if isFlag(curr) {
 			var fg string
 			if eq := strings.IndexByte(curr[1:], '='); eq != -1 {
 				fg = curr[1 : eq+1]
@@ -120,7 +125,7 @@ func clivide(cli []string, comflags map[string]bool) (common, specific []string)
 		// next element can be flag or arg
 		next := cli[i+1]
 		// is flag? then jump to processing flags code area
-		if next[0] == '-' {
+		if isFlag(next) {
 			i++
 			continue
 		} else {
