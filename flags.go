@@ -144,27 +144,25 @@ func commonFlags() map[string]bool {
 }
 
 func param() error {
+	// set common flags
+
 	var (
-		err     error
+		err error
+
 		flagset = flag.NewFlagSet("cli", flag.ExitOnError)
+		cmd     = os.Args[1]
 		same    = []string{}
 		spec    = []string{}
+
+		usage   func()
+		usagefn = func(msg string) func() {
+			return func() {
+				fmt.Println(msg)
+				flagset.Usage()
+				os.Exit(1)
+			}
+		}
 	)
-
-	flagset.Usage = func() {
-		fmt.Printf(`  -repeat command
-	repeat every requested page on imposition sheet in respect to grid
-  -samepage <numpage> command
-	impose chosen samepage using grid by pages number times 
-`)
-		flagset.PrintDefaults()
-	}
-
-	var (
-		usage bool
-		cmd   = os.Args[1]
-	)
-
 	// start to initialize flags definition
 	switch cmd {
 	case "repeat":
@@ -182,7 +180,7 @@ func param() error {
 			log.Fatal(err)
 		}
 		if samepage < 1 {
-			usage = true
+			usage = usagefn("  -samepage command demands a valid page number in order to do its job")
 		}
 		flagset.Parse(spec)
 	case "booklet":
@@ -196,23 +194,32 @@ func param() error {
 		same, spec = clivide(os.Args[1:], commonFlags())
 		flagset.Parse(spec)
 		if !isFlag(cmd) {
-			usage = true
+			usage = usagefn("not defined")
 		}
 	}
 
-	// set common flags
 	initFileFlags(flagset)
 	initGeometryFlags(flagset)
 	initPositionFlags(flagset)
 	initGridFlags(flagset)
 	initMarkFlags(flagset)
 	initViewFlags(flagset)
-	// end flags definition
+	// end common flags definition
 	flagset.Parse(same)
+	flagset.Usage = func() {
+		fmt.Printf(`  -repeat command
+	repeat every requested page on imposition sheet in respect to grid
+  -samepage <numpage> command
+	impose chosen samepage using grid by pages number times
+  -booklet command
+  	booklet impose using a flow 4-1 2-3 dedicated for booklet
+	it has its own flag -creep
+`)
+		flagset.PrintDefaults()
+	}
 
-	if usage {
-		flagset.Usage()
-		os.Exit(1)
+	if usage != nil {
+		usage()
 	}
 
 	if fn == "" {
