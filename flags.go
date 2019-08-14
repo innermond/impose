@@ -4,10 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/unidoc/unipdf/v3/creator"
@@ -25,7 +23,6 @@ var (
 	center, centerx, centery bool
 	pages                    string
 	postfix                  string
-	samepage                 int
 	repeat                   bool
 	grid                     string
 	flow                     string
@@ -175,17 +172,6 @@ func param() error {
 		// setup specifi flags then
 		// parse specific flag if any
 		flagset.Parse(spec)
-	case "samepage":
-		// ./impose samepage <pagenum> ...
-		same, spec = clivide(os.Args[3:], commonFlags())
-		samepage, err = strconv.Atoi(os.Args[2])
-		if err != nil {
-			log.Fatal(err)
-		}
-		if samepage < 1 {
-			usage = usagefn("  -samepage command demands a valid page number in order to do its job")
-		}
-		flagset.Parse(spec)
 	case "booklet":
 		// ./impose booklet -creep
 		same, spec = clivide(os.Args[2:], commonFlags())
@@ -212,8 +198,6 @@ func param() error {
 	flagset.Usage = func() {
 		fmt.Printf(`  -repeat command
 	repeat every requested page on imposition sheet in respect to grid
-  -samepage <numpage> command
-	impose chosen samepage using grid by pages number times
   -booklet command
   	booklet impose using a flow 4-1 2-3 dedicated for booklet
 	it has its own flag -creep
@@ -287,12 +271,6 @@ func param() error {
 	if fout == "" {
 		ext := path.Ext(fn)
 		fout = fn[:len(fn)-len(ext)] + postfix + ext
-	}
-
-	if !bookletMode {
-		creep = 0.0
-	} else {
-		repeat = false
 	}
 
 	if !autopage {

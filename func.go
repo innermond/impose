@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
-
-	pdf "github.com/unidoc/unipdf/v3/model"
 )
 
 func getFlowAsInts(ss []string, max int) (list []int, err error) {
@@ -30,61 +27,6 @@ func getFlowAsInts(ss []string, max int) (list []int, err error) {
 		}
 	}
 	return
-}
-
-// round floor to floor
-// addressing quirks regarding floor numbers
-// identical numbers may have their remote decimals different
-// so comparing them for equality is compromised
-// but we restore order by keeping only a specified number of decimals
-func floor63(v float64, p ...int) float64 {
-	a := 2
-	if len(p) > 0 {
-		a = p[0]
-	}
-	n := math.Pow10(a)
-	return math.Ceil(v*n) / n
-}
-
-// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
-func adjustMediaBox(page *pdf.PdfPage, bleedx, bleedy float64) {
-	// TrimBox is the final page
-	tbox, err := page.GetBox("TrimBox")
-	if err != nil {
-		cbox, err := page.GetBox("CropBox")
-		if err == nil {
-			tbox = cbox
-			page.TrimBox = cbox
-		} else {
-			// no trimbox or cropbox
-			// only mediabox so dont adjust
-			return
-		}
-	}
-	// MediaBox = TrimBox + bleed
-	mbox := &pdf.PdfRectangle{}
-	// expand with bleedx and bleedy
-	mbox.Llx = tbox.Llx - bleedx
-	mbox.Lly = tbox.Lly - bleedy
-	mbox.Urx = tbox.Urx + bleedx
-	mbox.Ury = tbox.Ury + bleedy
-
-	mediabox, err := page.GetMediaBox()
-	// what?? we have at least a cropbox or a trimbox but not a mediabox???
-	if err != nil {
-		return
-	}
-
-	// do not exceed unadjusted real mediabox
-	// mediabox width smaller than adjusted mbox width
-	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
-		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
-		// use mediabox
-		mbox = mediabox
-	}
-	// adjust
-	page.MediaBox = mbox
-
 }
 
 func isFlag(fg string) bool {

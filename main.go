@@ -204,14 +204,16 @@ func main() {
 
 	if repeat {
 		bb.Repeat(pags, cros2b)
-	} else {
-		bb.Impose(flow, duplex, np, angle,
+	} else if bookletMode {
+		bb.Booklet(flow,
 			pags,
-			pdfReader, c,
 			cros2b,
-			bookletMode, creep,
-			outline,
-			bleedx, bleedy,
+			creep,
+		)
+	} else {
+		bb.Impose(flow, duplex,
+			pags,
+			cros2b,
 		)
 	}
 
