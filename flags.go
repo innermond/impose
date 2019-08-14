@@ -29,6 +29,7 @@ var (
 	repeat                   bool
 	grid                     string
 	flow                     string
+	duplex                   string
 	angle                    float64
 	bleed, bleedx, bleedy    float64
 	offset, offx, offy       float64
@@ -63,9 +64,10 @@ var (
 		"angle":   true,
 	}
 	gridFlags = map[string]bool{
-		"grid":  true,
-		"flow":  true,
-		"pages": true,
+		"grid":   true,
+		"flow":   true,
+		"pages":  true,
+		"duplex": true,
 	}
 	markFlags = map[string]bool{
 		"offset":   true,
@@ -113,6 +115,7 @@ func initGridFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
 	flagset.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
+	flagset.StringVar(&duplex, "duplex", "", "duplex indicate back sheet flow")
 }
 
 func initMarkFlags(flagset *flag.FlagSet) {
