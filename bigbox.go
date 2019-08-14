@@ -16,16 +16,16 @@ type Box struct {
 	Top, Right, Bottom, Left float64
 }
 
-func (bb *Box) AvailableWidth() float64 {
-	return bb.Width - (bb.Left + bb.Right)
+func (b *Box) AvailableWidth() float64 {
+	return b.Width - (b.Left + b.Right)
 }
 
-func (bb *Box) AvailableHeight() float64 {
-	return bb.Height - (bb.Top + bb.Bottom)
+func (b *Box) AvailableHeight() float64 {
+	return b.Height - (b.Top + b.Bottom)
 }
 
-func (bb *Box) Switch() {
-	bb.Width, bb.Height = bb.Height, bb.Width
+func (b *Box) Switch() {
+	b.Width, b.Height = b.Height, b.Width
 }
 
 type BigBox struct {
@@ -33,6 +33,7 @@ type BigBox struct {
 }
 type SmallBox struct {
 	*Box
+	Angle float64
 }
 
 type Boxes struct {
@@ -40,6 +41,35 @@ type Boxes struct {
 	Small    *SmallBox
 	Col, Row int
 	Num      int
+
+	Creator *creator.Creator
+	Reader  *PdfReader
+
+	Outline bool
+}
+
+type PdfReader struct {
+	*model.PdfReader
+	pg     *model.PdfPage
+	dx, dy float64
+}
+
+func (r *PdfReader) GetPage(num int) (*model.PdfPage, error) {
+	var err error
+	r.pg, err = r.PdfReader.GetPage(num)
+	if err != nil {
+		return nil, err
+	}
+	adjustMediaBox(r.pg, r.dx, r.dy)
+	return r.pg, nil
+}
+
+func (r *PdfReader) BlockFromPage(num int) (*creator.Block, error) {
+	_, err := r.GetPage(num)
+	if err != nil {
+		return nil, err
+	}
+	return creator.NewBlockFromPage(r.pg)
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
@@ -153,6 +183,13 @@ func (bb *Boxes) Impose(flow string, duplex string,
 	booklet bool, creep float64,
 	outline bool, bleedx, bleedy float64,
 ) {
+	// proxy variables
+	var (
+		col, row   = bb.Col, bb.Row
+		maxOnSheet = col * row
+		left, top  = bb.Big.Left, bb.Big.Top
+		w, h       = bb.Small.Width, bb.Small.Height
+	)
 	// start imposition
 	var (
 		sheet, pg                  *model.PdfPage
@@ -163,13 +200,6 @@ func (bb *Boxes) Impose(flow string, duplex string,
 		xpos, ypos                 = left, top
 		num                        int
 		creepCount, nextSheetCount int
-	)
-	// proxy variables
-	var (
-		col, row   = bb.Col, bb.Row
-		maxOnSheet = col * row
-		left, top  = bb.Big.Left, bb.Big.Top
-		w, h       = bb.Small.Width, bb.Small.Height
 	)
 	if booklet {
 		step = creep / float64(np/4)
@@ -311,6 +341,118 @@ grid:
 						bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), outline)
 					}
 				}
+				// layout page
+				bk.SetPos(xposx, yposy)
+				_ = c.Draw(bk)
+
+				xpos += float64(w)
+				if nextSheet {
+					nextSheet = false
+				}
+				bar.Increment()
+			}
+			ypos += float64(h)
+			xpos = left
+			j++
+		}
+	}
+	// put cropmarks for the last sheet
+	if cros2b != nil {
+		c.Draw(cros2b)
+	}
+
+	bar.Finish()
+	// ring terminal bell once
+	fmt.Print("\a\n")
+}
+
+func (bb *Boxes) Repeat(
+	pxp []int,
+	cros2b *creator.Block,
+) {
+	// proxy variables
+	var (
+		err        error
+		np         = len(pxp)
+		col, row   = bb.Col, bb.Row
+		maxOnSheet = col * row
+		left, top  = bb.Big.Left, bb.Big.Top
+		w, h       = bb.Small.Width, bb.Small.Height
+		angle      = bb.Small.Angle
+		pdfReader  = bb.Reader
+		c          = bb.Creator
+	)
+	// start imposition
+	var (
+		sheet      *model.PdfPage
+		bk         *creator.Block
+		i, j       int
+		nextSheet  bool
+		xpos, ypos = left, top
+		num        int
+	)
+	sheet = model.NewPdfPage()
+	sheet.MediaBox = &model.PdfRectangle{0, 0, bb.Big.Width, bb.Big.Height}
+	c.AddPage(sheet)
+	// count sheets
+	sheets := 1
+	bar := pb.StartNew(np)
+grid:
+	for {
+		for y := 0; y < row; y++ {
+			for x := 0; x < col; x++ {
+				if i >= np {
+					break grid
+				}
+				// check the need for a new page
+				if i >= maxOnSheet {
+					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
+				}
+				if nextSheet {
+					// count sheets
+					sheets++
+					// put cropmarks on sheet
+					if cros2b != nil {
+						c.Draw(cros2b)
+					}
+					// initialize position
+					ypos = top
+					//c.NewPage()
+					sheet = model.NewPdfPage()
+					sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
+					c.AddPage(sheet)
+				}
+				// num resulted larger than number of pages
+				// place an empty space with the right wide
+				if num > np {
+					xpos += float64(w)
+					continue
+				}
+				// get the page number from pages slice
+				num = pxp[i]
+				// count pages processed
+				i++
+
+				bk, err = pdfReader.BlockFromPage(num)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// lay down imported page
+				xposx, yposy := xpos, ypos
+				if angle != 0.0 {
+					bk.SetAngle(angle)
+					if angle == -90.0 || angle == 270 {
+						xposx += w
+					}
+					if angle == 90.0 || angle == -270 {
+						yposy += h
+					}
+					if angle == -180 || angle == 180 {
+						xposx += w
+						yposy += h
+					}
+				}
+				bk.Clip(0, 0, bk.Width(), bk.Height(), outline)
 				// layout page
 				bk.SetPos(xposx, yposy)
 				_ = c.Draw(bk)

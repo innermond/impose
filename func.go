@@ -46,6 +46,7 @@ func floor63(v float64, p ...int) float64 {
 	return math.Ceil(v*n) / n
 }
 
+// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 func adjustMediaBox(page *pdf.PdfPage, bleedx, bleedy float64) {
 	// TrimBox is the final page
 	tbox, err := page.GetBox("TrimBox")
@@ -62,6 +63,7 @@ func adjustMediaBox(page *pdf.PdfPage, bleedx, bleedy float64) {
 	}
 	// MediaBox = TrimBox + bleed
 	mbox := &pdf.PdfRectangle{}
+	// expand with bleedx and bleedy
 	mbox.Llx = tbox.Llx - bleedx
 	mbox.Lly = tbox.Lly - bleedy
 	mbox.Urx = tbox.Urx + bleedx

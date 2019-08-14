@@ -38,8 +38,9 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("read pdf of %q", fn)
+	pdf := &PdfReader{pdfReader, nil, bleedx, bleedy}
 	// establish pages number
-	np, err := pdfReader.GetNumPages()
+	np, err := pdf.GetNumPages()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,11 +55,11 @@ func main() {
 		log.Fatal(err)
 	}
 	// all pages as a slice of ints
-	pagInts, err := sel.Full(ppp...)
+	pags, err := sel.Full(ppp...)
 	if err != nil {
 		log.Fatal(err)
 	}
-	np = len(pagInts)
+	np = len(pags)
 
 	// grid
 	var (
@@ -85,14 +86,14 @@ func main() {
 
 	// bookletMode need  certain grid and page order
 	if bookletMode {
-		if len(pagInts)%4 != 0 {
+		if len(pags)%4 != 0 {
 			log.Fatalf("number of pages %d is not divisible with 4", np)
 		}
 		if grid == "" {
 			grid = "2x1"
 			col, row = 2, 1
 		}
-		pagInts, err = booklet.Arrange(col, row, pagInts)
+		pags, err = booklet.Arrange(col, row, pags)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -101,11 +102,10 @@ func main() {
 	log.Println("parsed parameters")
 
 	// assume all pages has the same dimensions as first one
-	page, err := pdfReader.GetPage(1)
+	page, err := pdf.GetPage(1)
 	if err != nil {
 		log.Fatal(err)
 	}
-	adjustMediaBox(page, bleedx, bleedy)
 	bbox, err := page.GetMediaBox()
 	if err != nil {
 		log.Fatal(err)
@@ -122,18 +122,22 @@ func main() {
 		width = left + float64(col)*w + right + 2*extw + 2*autopadding
 		height = top + float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = left + float64(row)*h + right + 2*extw + 2*autopadding
-			height = top + float64(col)*w + bottom + 2*exth + 2*autopadding
+			width = left + float64(col)*h + right + 2*extw + 2*autopadding
+			height = top + float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
 	}
 
+	// create a sheet page
+	c := creator.New()
+	c.SetPageSize(creator.PageSize{width, height})
+
 	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
-	smallbox := &SmallBox{&Box{Width: w, Height: h}}
-	bb := &Boxes{bigbox, smallbox, col, row, np}
+	smallbox := &SmallBox{&Box{Width: w, Height: h}, angle}
+	bb := &Boxes{bigbox, smallbox, col, row, np, c, pdf, outline}
 
 	angled := false
 	if beSwitched {
-		bb.SwitchGrid()
+		bb.Small.Switch()
 		angled = true
 	}
 	// centering by changing margins
@@ -164,10 +168,6 @@ func main() {
 
 	log.Println("prepared boxes")
 
-	// create a sheet page
-	c := creator.New()
-	c.SetPageSize(creator.PageSize{width, height})
-
 	var cros2b *creator.Block
 	if showcropmark {
 		cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
@@ -178,12 +178,12 @@ func main() {
 		numsheet := col * row
 		np *= numsheet
 		repeated := []int{}
-		for _, e := range pagInts {
+		for _, e := range pags {
 			for i := 0; i < numsheet; i++ {
 				repeated = append(repeated, e)
 			}
 		}
-		pagInts = repeated
+		pags = repeated
 	}
 	// we have duplex but not explicit
 	if len(duplex) == 0 {
@@ -202,14 +202,18 @@ func main() {
 		duplex = ""
 	}
 
-	bb.Impose(flow, duplex, np, angle,
-		pagInts,
-		pdfReader, c,
-		cros2b,
-		bookletMode, creep,
-		outline,
-		bleedx, bleedy,
-	)
+	if repeat {
+		bb.Repeat(pags, cros2b)
+	} else {
+		bb.Impose(flow, duplex, np, angle,
+			pags,
+			pdfReader, c,
+			cros2b,
+			bookletMode, creep,
+			outline,
+			bleedx, bleedy,
+		)
+	}
 
 	err = c.WriteToFile(fout)
 	if err != nil {
