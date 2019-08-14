@@ -183,8 +183,24 @@ func main() {
 		}
 		pagInts = repeated
 	}
+	// we have duplex but not explicit
+	if len(duplex) == 0 {
+		// reverse flow seen as 1 to col
+		if len(flow) == 0 {
+			for i := col; i > 0; i-- {
+				duplex += strconv.Itoa(i) + ","
+			}
+			duplex = duplex[0 : len(duplex)-1]
+		} else {
+			for i := len(flow); i > 0; i += 2 {
+				duplex += flow[i : i-1]
+			}
+		}
+	} else if duplex == nothere {
+		duplex = ""
+	}
 
-	bb.Impose(flow, np, angle,
+	bb.Impose(flow, duplex, np, angle,
 		pagInts,
 		pdfReader, c,
 		cros2b,

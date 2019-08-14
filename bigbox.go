@@ -146,7 +146,9 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 	return
 }
 
-func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int,
+func (bb *Boxes) Impose(flow string, duplex string,
+	np int, angle float64,
+	pxp []int,
 	pdfReader *model.PdfReader, c *creator.Creator, cros2b *creator.Block,
 	booklet bool, creep float64,
 	outline bool, bleedx, bleedy float64,
@@ -183,7 +185,16 @@ func (bb *Boxes) Impose(flow string, np int, angle float64, pxp []int,
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	hasDuplex := len(duplex) > 0
+	dd := []int{}
+	if hasDuplex {
+		dd, err = bb.ParseFlow(duplex)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	// count sheets
+	sheets := 1
 	bar := pb.StartNew(np)
 grid:
 	for {
@@ -192,22 +203,13 @@ grid:
 				if i >= np {
 					break grid
 				}
-				// take flow order into account
-				num = ff[x] + j*col
-				// num resulted larger than number of pages
-				// place an empty space with the right wide
-				if num > np {
-					xpos += float64(w)
-					continue
-				}
-				// get the page number from pages slice
-				num = pxp[num-1]
-
 				// check the need for a new page
 				if i >= maxOnSheet {
 					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
 				if nextSheet {
+					// count sheets
+					sheets++
 					// put cropmarks on sheet
 					if cros2b != nil {
 						c.Draw(cros2b)
@@ -219,6 +221,20 @@ grid:
 					sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
 					c.AddPage(sheet)
 				}
+				// take flow order into account
+				if hasDuplex && sheets%2 == 0 {
+					num = dd[x] + j*col
+				} else {
+					num = ff[x] + j*col
+				}
+				// num resulted larger than number of pages
+				// place an empty space with the right wide
+				if num > np {
+					xpos += float64(w)
+					continue
+				}
+				// get the page number from pages slice
+				num = pxp[num-1]
 
 				// count pages processed
 				i++
