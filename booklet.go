@@ -5,12 +5,12 @@ import (
 	"log"
 
 	"github.com/cheggaaa/pb/v3"
+	"github.com/innermond/impose/booklet"
 	"github.com/unidoc/unipdf/v3/creator"
 )
 
-func (bb *Boxes) Booklet(flow string,
+func (bb *Boxes) Booklet(
 	pxp []int,
-	cros2b *creator.Block,
 	creep float64,
 ) {
 	// proxy variables
@@ -24,7 +24,11 @@ func (bb *Boxes) Booklet(flow string,
 		angle      = bb.Small.Angle
 		pdfReader  = bb.Reader
 		c          = bb.Creator
+		cros2b     = bb.Cropmark
 	)
+	if np%4 != 0 {
+		log.Fatalf("%d is not divisible with 4", np)
+	}
 	// start imposition
 	var (
 		bk                         *creator.Block
@@ -40,8 +44,7 @@ func (bb *Boxes) Booklet(flow string,
 	bb.NewSheet()
 	nextSheetCount = 1
 
-	// parse flow
-	ff, err := bb.ParseFlow(flow)
+	pxp, err = booklet.Arrange(col, row, pxp)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,7 +54,7 @@ func (bb *Boxes) Booklet(flow string,
 grid:
 	for {
 		for y := 0; y < row; y++ {
-			for x := 0; x < len(ff); x++ {
+			for x := 0; x < col; x++ {
 				if i >= np {
 					break grid
 				}
@@ -68,22 +71,11 @@ grid:
 					}
 					// initialize position
 					ypos = top
-					//c.NewPage()
 					bb.NewSheet()
 				}
-				num = ff[x] + j*col
-				// num resulted larger than number of pages
-				// place an empty space with the right wide
-				if num > np {
-					xpos += float64(w)
-					continue
-				}
-				// get the page number from pages slice
-				num = pxp[num-1]
-
+				num = pxp[i]
 				// count pages processed
 				i++
-
 				bk, err = pdfReader.BlockFromPage(num)
 				if err != nil {
 					log.Fatal(err)
@@ -130,16 +122,16 @@ grid:
 				switch angle {
 				case 0.0:
 					xposx += direction * dt
-					bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), outline)
+					bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 				case -90, 270:
 					yposy += direction * dt
-					bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), outline)
+					bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 				case 90, -270:
 					yposy += direction * dt
-					bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), outline)
+					bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 				case 180, -180:
 					xposx += direction * dt
-					bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), outline)
+					bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 				}
 				// layout page
 				bk.SetPos(xposx, yposy)

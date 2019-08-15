@@ -2,6 +2,7 @@ package impose
 
 import (
 	"errors"
+	"io"
 
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
@@ -11,6 +12,14 @@ type PdfReader struct {
 	*model.PdfReader
 	pg     *model.PdfPage
 	dx, dy float64
+}
+
+func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
+	r, err := model.NewPdfReader(f)
+	if err != nil {
+		return nil, err
+	}
+	return &PdfReader{r, nil, dx, dy}, nil
 }
 
 func (r *PdfReader) AdjustMediaBox() error {

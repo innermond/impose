@@ -10,7 +10,6 @@ import (
 
 func (bb *Boxes) Repeat(
 	pxp []int,
-	cros2b *creator.Block,
 ) {
 	// proxy variables
 	var (
@@ -23,7 +22,18 @@ func (bb *Boxes) Repeat(
 		angle      = bb.Small.Angle
 		pdfReader  = bb.Reader
 		c          = bb.Creator
+		cros2b     = bb.Cropmark
+		outline    = bb.Outline
 	)
+	numsheet := col * row
+	np *= numsheet
+	repeated := []int{}
+	for _, e := range pxp {
+		for i := 0; i < numsheet; i++ {
+			repeated = append(repeated, e)
+		}
+	}
+	pxp = repeated
 	// start imposition
 	var (
 		bk         *creator.Block

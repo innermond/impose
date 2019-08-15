@@ -8,12 +8,13 @@ type CropMarkBlock struct {
 	w, h, bleedx, bleedy float64
 	col, row             int
 	extw, exth           float64
-	c                    *creator.Creator
+	markw, markh         float64
+	father               *Boxes
 }
 
-func (bk *CropMarkBlock) Create(bookletMode bool, angled bool) *creator.Block {
-	w, h, bleedx, bleedy, col, row, extw, exth := bk.w, bk.h, bk.bleedx, bk.bleedy, bk.col, bk.row, bk.extw, bk.exth
-	c := bk.c
+func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
+	w, h, bleedx, bleedy, col, row, extw, exth, markw, markh := bk.w, bk.h, bk.bleedx, bk.bleedy, bk.col, bk.row, bk.extw, bk.exth, bk.markw, bk.markh
+	c := bk.father.Creator
 	// extended to enncompass cropmarks
 	cros2bw := float64(col)*w + 2*extw
 	cros2bh := float64(row)*h + 2*exth
@@ -70,7 +71,7 @@ func (bk *CropMarkBlock) Create(bookletMode bool, angled bool) *creator.Block {
 	// to get a fully cropmarks block
 	cros2b := creator.NewBlock(cros2bw, cros2bh)
 	// place with cropmarks outside - offset backward with their sizes extw and exth
-	cros2b.SetPos(left-extw, top-exth)
+	cros2b.SetPos(bk.father.Big.Left-extw, bk.father.Big.Top-exth)
 	cros2b.Draw(crosb)
 	//rect := c.NewRectangle(0.0, 0.0, cros2bw, cros2bh)
 	//rect.SetBorderColor(creator.ColorBlack)

@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/innermond/impose/booklet"
+	"github.com/innermond/impose"
 	"github.com/innermond/pange"
 	"github.com/unidoc/unipdf/v3/creator"
-	"github.com/unidoc/unipdf/v3/model"
 )
 
 const nothere = "duplex_value"
@@ -32,12 +31,11 @@ func main() {
 	}
 	defer f.Close()
 	// read first pdf page
-	pdfReader, err := model.NewPdfReader(f)
+	log.Printf("read pdf of %q", fn)
+	pdf, err := impose.NewReader(f, bleedx, bleedy)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("read pdf of %q", fn)
-	pdf := &PdfReader{pdfReader, nil, bleedx, bleedy}
 	// establish pages number
 	np, err := pdf.GetNumPages()
 	if err != nil {
@@ -85,16 +83,9 @@ func main() {
 
 	// bookletMode need  certain grid and page order
 	if bookletMode {
-		if len(pags)%4 != 0 {
-			log.Fatalf("number of pages %d is not divisible with 4", np)
-		}
 		if grid == "" {
 			grid = "2x1"
 			col, row = 2, 1
-		}
-		pags, err = booklet.Arrange(col, row, pags)
-		if err != nil {
-			log.Fatal(err)
 		}
 	}
 
@@ -130,9 +121,9 @@ func main() {
 	c := creator.New()
 	c.SetPageSize(creator.PageSize{width, height})
 
-	bigbox := &BigBox{&Box{width, height, top, right, bottom, left}}
-	smallbox := &SmallBox{&Box{Width: w, Height: h}, angle}
-	bb := &Boxes{bigbox, smallbox, col, row, np, c, pdf, outline}
+	bigbox := &impose.BigBox{&impose.Box{width, height, top, right, bottom, left}}
+	smallbox := &impose.SmallBox{&impose.Box{Width: w, Height: h}, angle}
+	bb := &impose.Boxes{bigbox, smallbox, col, row, np, c, pdf, nil, outline}
 
 	angled := false
 	if beSwitched {
@@ -167,23 +158,16 @@ func main() {
 
 	log.Println("prepared boxes")
 
-	var cros2b *creator.Block
 	if showcropmark {
-		cropbk := &CropMarkBlock{w, h, bleedx, bleedy, col, row, extw, exth, c}
-		cros2b = cropbk.Create(bookletMode, angled)
+		bb.CreateCropmark(
+			markw, markh,
+			extw, exth,
+			bleedx, bleedy,
+			bookletMode,
+			angled,
+		)
 	}
 
-	if repeat {
-		numsheet := col * row
-		np *= numsheet
-		repeated := []int{}
-		for _, e := range pags {
-			for i := 0; i < numsheet; i++ {
-				repeated = append(repeated, e)
-			}
-		}
-		pags = repeated
-	}
 	// we have duplex but not explicit
 	if len(duplex) == 0 {
 		// reverse flow seen as 1 to col
@@ -202,18 +186,17 @@ func main() {
 	}
 
 	if repeat {
-		bb.Repeat(pags, cros2b)
+		bb.Repeat(pags)
 	} else if bookletMode {
-		bb.Booklet(flow,
+		bb.Booklet(
 			pags,
-			cros2b,
 			creep,
 		)
 	} else {
-		bb.Impose(flow, duplex,
+		/*bb.Impose(flow, duplex,
+
 			pags,
-			cros2b,
-		)
+		)*/
 	}
 
 	err = c.WriteToFile(fout)
