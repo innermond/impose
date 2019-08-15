@@ -18,7 +18,6 @@ import (
 const nothere = "duplex_value"
 
 func main() {
-
 	err := param()
 	if err != nil {
 		log.Fatal(err)
