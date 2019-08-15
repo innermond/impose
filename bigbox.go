@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/unidoc/unipdf/v3/creator"
+	"github.com/unidoc/unipdf/v3/model"
 )
 
 type Box struct {
@@ -44,6 +45,12 @@ type Boxes struct {
 	Reader  *PdfReader
 
 	Outline bool
+}
+
+func (bb *Boxes) NewSheet() {
+	sheet := model.NewPdfPage()
+	sheet.MediaBox = &model.PdfRectangle{0, 0, bb.Big.Width, bb.Big.Height}
+	bb.Creator.AddPage(sheet)
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongWidth() {

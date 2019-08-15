@@ -13,6 +13,8 @@ func On(in []int, as []int) (out []int, err error) {
 	const (
 		end   = -1
 		half  = -2
+		odd   = -3
+		even  = -4
 		empty = 0
 	)
 

@@ -6,7 +6,6 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/unidoc/unipdf/v3/creator"
-	"github.com/unidoc/unipdf/v3/model"
 )
 
 func (bb *Boxes) Booklet(flow string,
@@ -28,7 +27,6 @@ func (bb *Boxes) Booklet(flow string,
 	)
 	// start imposition
 	var (
-		sheet                      *model.PdfPage
 		bk                         *creator.Block
 		i, j                       int
 		dt, step                   float64
@@ -39,9 +37,7 @@ func (bb *Boxes) Booklet(flow string,
 	)
 	step = creep / float64(np/4)
 
-	sheet = model.NewPdfPage()
-	sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
-	c.AddPage(sheet)
+	bb.NewSheet()
 	nextSheetCount = 1
 
 	// parse flow
@@ -73,9 +69,7 @@ grid:
 					// initialize position
 					ypos = top
 					//c.NewPage()
-					sheet = model.NewPdfPage()
-					sheet.MediaBox = &model.PdfRectangle{0, 0, c.Width(), c.Height()}
-					c.AddPage(sheet)
+					bb.NewSheet()
 				}
 				num = ff[x] + j*col
 				// num resulted larger than number of pages
