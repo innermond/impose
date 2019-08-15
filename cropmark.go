@@ -1,4 +1,4 @@
-package main
+package impose
 
 import (
 	"github.com/unidoc/unipdf/v3/creator"
