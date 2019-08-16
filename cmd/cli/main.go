@@ -193,10 +193,10 @@ func main() {
 			creep,
 		)
 	} else {
-		bb.Impose(
+		/*	bb.Impose(
 			flow, duplex,
 			pags,
-		)
+		)*/
 	}
 
 	err = c.WriteToFile(fout)
