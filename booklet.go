@@ -22,9 +22,6 @@ func (bb *Boxes) Booklet(
 		left, top  = bb.Big.Left, bb.Big.Top
 		w, h       = bb.Small.Width, bb.Small.Height
 		angle      = bb.Small.Angle
-		pdfReader  = bb.Reader
-		c          = bb.Creator
-		cros2b     = bb.Cropmark
 	)
 	if np%4 != 0 {
 		log.Fatalf("%d is not divisible with 4", np)
@@ -66,9 +63,7 @@ grid:
 					// count sheets
 					sheets++
 					// put cropmarks on sheet
-					if cros2b != nil {
-						c.Draw(cros2b)
-					}
+					bb.DrawCropmark()
 					// initialize position
 					ypos = top
 					bb.NewSheet()
@@ -76,7 +71,7 @@ grid:
 				num = pxp[i]
 				// count pages processed
 				i++
-				bk, err = pdfReader.BlockFromPage(num)
+				bk, err = bb.Reader.BlockFromPage(num)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -135,7 +130,7 @@ grid:
 				}
 				// layout page
 				bk.SetPos(xposx, yposy)
-				_ = c.Draw(bk)
+				_ = bb.Creator.Draw(bk)
 
 				xpos += float64(w)
 				if nextSheet {
@@ -149,9 +144,7 @@ grid:
 		}
 	}
 	// put cropmarks for the last sheet
-	if cros2b != nil {
-		c.Draw(cros2b)
-	}
+	bb.DrawCropmark()
 
 	bar.Finish()
 	// ring terminal bell once

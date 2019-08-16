@@ -169,3 +169,10 @@ func (bb *Boxes) CreateCropmark(
 	}
 	bb.Cropmark = cropbk.Create(bookletMode, angled)
 }
+
+func (bb *Boxes) DrawCropmark() {
+	if bb.Cropmark != nil {
+		bb.Creator.Draw(bb.Cropmark)
+	}
+
+}

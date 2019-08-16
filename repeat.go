@@ -20,9 +20,6 @@ func (bb *Boxes) Repeat(
 		left, top  = bb.Big.Left, bb.Big.Top
 		w, h       = bb.Small.Width, bb.Small.Height
 		angle      = bb.Small.Angle
-		pdfReader  = bb.Reader
-		c          = bb.Creator
-		cros2b     = bb.Cropmark
 		outline    = bb.Outline
 	)
 	numsheet := col * row
@@ -61,9 +58,7 @@ grid:
 					// count sheets
 					sheets++
 					// put cropmarks on sheet
-					if cros2b != nil {
-						c.Draw(cros2b)
-					}
+					bb.DrawCropmark()
 					// initialize position
 					ypos = top
 					bb.NewSheet()
@@ -79,7 +74,7 @@ grid:
 				// count pages processed
 				i++
 
-				bk, err = pdfReader.BlockFromPage(num)
+				bk, err = bb.Reader.BlockFromPage(num)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -101,7 +96,7 @@ grid:
 				bk.Clip(0, 0, bk.Width(), bk.Height(), outline)
 				// layout page
 				bk.SetPos(xposx, yposy)
-				_ = c.Draw(bk)
+				_ = bb.Creator.Draw(bk)
 
 				xpos += float64(w)
 				if nextSheet {
@@ -115,9 +110,7 @@ grid:
 		}
 	}
 	// put cropmarks for the last sheet
-	if cros2b != nil {
-		c.Draw(cros2b)
-	}
+	bb.DrawCropmark()
 
 	bar.Finish()
 	// ring terminal bell once
