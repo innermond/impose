@@ -3,6 +3,7 @@ package impose
 import (
 	"fmt"
 	"log"
+	"math"
 
 	"github.com/cheggaaa/pb/v3"
 	"github.com/innermond/impose/duplex"
@@ -16,40 +17,97 @@ func (bb *Boxes) Booklet(
 ) {
 	// proxy variables
 	var (
-		err        error
-		np         = len(pxp)
-		maxOnSheet = bb.Col * bb.Row
-		left, top  = bb.Big.Left, bb.Big.Top
-		xpos, ypos = left, top
-		w, h       = bb.Small.Width, bb.Small.Height
+		err error
+		np  = len(pxp)
 	)
 
 	if np%4 != 0 {
 		log.Fatalf("%d is not divisible with 4", np)
 	}
-
+	// booklet signature {last first second second-last}
+	// example: 4 pages are imposed like this 4-1-2-3
+	// 4-1 are a front page 2-3 are corespondent back page - the duplex
+	// reflow order pages for booklet
 	pxp, err = reflow.On(pxp, []int{-1, 0, 1, -1})
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// calculate creeping as ints with a multiplier because go do not have generics
+	// and our duplex.Reflow accepts []int not []float64
+	creepx := []int{}
+	// for booklet two pages make a unit, they are "welded"
+	weld := 2
+	// calculate creep step
+	dx := creep / float64(len(pxp))
+	multiplier := 100.0
+	// round to nearest
+	dx = math.Round(dx*multiplier) / multiplier
+	dxint := int(dx * multiplier)
+	// step every welded elements - face + back so step is 2*weld
+	for i := 0; i < len(pxp); i += 2 * weld {
+		creepx = append(creepx, i*dxint)
+		creepx = append(creepx, -i*dxint)
+		creepx = append(creepx, i*dxint)
+		creepx = append(creepx, -i*dxint)
+	}
+	// reverse+flip are args
+	reverse := false
 	flip := true
-	pxp, err = duplex.Reflow(pxp, 2, bb.Col, bb.Row, false, flip)
+	// calculate creep to coresponds with duplexed pxp
+	creepx, err = duplex.Reflow(creepx, weld, bb.Col, bb.Row, reverse, flip)
+	if err != nil {
+		log.Fatal(err)
+	}
+	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// start imposition
+	bb.Num = len(pxp)
+
+	// decouple progress bar by drawing mechanics
+	counter := make(chan int)
+	go func() {
+		bar := pb.StartNew(bb.Num)
+		for {
+			_, more := <-counter
+			if more {
+				bar.Increment()
+			} else {
+				break
+			}
+		}
+		bar.Finish()
+		// ring terminal bell once
+		fmt.Print("\a\n")
+	}()
+
+	// cycle every page and draw it
+	bb.Cycle(pxp, counter, func(i int) {
+		bb.DeltaPos = float64(creepx[i]) / multiplier
+	})
+	// put cropmarks for the last sheet
+	bb.DrawCropmark()
+
+}
+
+func (bb *Boxes) Cycle(pxp []int, c chan int, adjuster func(i int)) {
 	var (
-		i         int
-		nextSheet bool
+		err        error
+		maxOnSheet = bb.Col * bb.Row
+		xpos, ypos = bb.Big.Left, bb.Big.Top
+		w, h       = bb.Small.Width, bb.Small.Height
+		i          int
+		nextSheet  bool
 	)
-	bar := pb.StartNew(np)
+	// start imposition
 	bb.NewSheet()
 grid:
 	for {
 		for y := 0; y < bb.Row; y++ {
 			for x := 0; x < bb.Col; x++ {
-				if i >= np {
+				if i >= bb.Num {
 					break grid
 				}
 				// check the need for a new page
@@ -60,28 +118,30 @@ grid:
 					// put cropmarks on sheet
 					bb.DrawCropmark()
 					// initialize position
-					ypos = top
+					ypos = bb.Big.Top
 					bb.NewSheet()
 					nextSheet = false
 				}
 				if pxp[i] > 0 {
-					bb.DrawPage(pxp[i], xpos, ypos)
+					if adjuster != nil {
+						adjuster(i)
+					}
+					err = bb.DrawPage(pxp[i], xpos, ypos)
+					if err != nil {
+						log.Fatal(err)
+					}
 				}
 				// count pages processed
 				i++
+				// signal page drawing
+				c <- i
 				xpos += float64(w)
-				bar.Increment()
 			}
 			ypos += float64(h)
-			xpos = left
+			xpos = bb.Big.Left
 		}
 	}
-	// put cropmarks for the last sheet
-	bb.DrawCropmark()
-
-	bar.Finish()
-	// ring terminal bell once
-	fmt.Print("\a\n")
+	close(c)
 }
 
 func (bb *Boxes) DrawPage(num int, xpos, ypos float64) error {
@@ -89,12 +149,9 @@ func (bb *Boxes) DrawPage(num int, xpos, ypos float64) error {
 		err   error
 		w, h  = bb.Small.Width, bb.Small.Height
 		angle = bb.Small.Angle
+		dt    = bb.DeltaPos
 
-		bk                         *creator.Block
-		i                          int
-		dt, step                   float64
-		nextSheet                  bool
-		creepCount, nextSheetCount int
+		bk *creator.Block
 	)
 
 	bk, err = bb.Reader.BlockFromPage(num)
@@ -104,55 +161,28 @@ func (bb *Boxes) DrawPage(num int, xpos, ypos float64) error {
 
 	// lay down imported page
 	xposx, yposy := xpos, ypos
-	if angle != 0.0 {
-		bk.SetAngle(angle)
-		if angle == -90.0 || angle == 270 {
-			xposx += w
-		}
-		if angle == 90.0 || angle == -270 {
-			yposy += h
-		}
-		if angle == -180 || angle == 180 {
-			xposx += w
-			yposy += h
-		}
-	}
-	// time to check if block is front or verso
-	if i > 2 && (i-1)%2 == 0 {
-		if nextSheet {
-			nextSheetCount++
-			if nextSheetCount%2 == 0 {
-				dt -= float64(creepCount) * step
-			} else {
-				dt += step
-			}
-			// reset counter
-			creepCount = 0
-		} else {
-			creepCount++
-			dt += step
-		}
-	}
-	direction := 0.0
-	if i%2 == 0 {
-		direction = 1.0
-	} else {
-		direction = -1.0
-	}
-
+	bk.SetAngle(angle)
+	// bk is top left corner oriented by framework choice
+	// Clip is bottom right oriented by pdf specification
+	// angle is counter clock wise, so -90 is clock wise
+	// do the math!!!
 	switch angle {
 	case 0.0:
-		xposx += direction * dt
-		bk.Clip(-1*direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		xposx += dt
+		bk.Clip(-1*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	case -90, 270:
-		yposy += direction * dt
-		bk.Clip(-direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		xposx += w
+		xposx += dt
+		bk.Clip(0, -dt, bk.Width(), bk.Height(), bb.Outline)
 	case 90, -270:
-		yposy += direction * dt
-		bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		yposy += h
+		xposx += dt
+		bk.Clip(0, dt, bk.Width(), bk.Height(), bb.Outline)
 	case 180, -180:
-		xposx += direction * dt
-		bk.Clip(direction*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		xposx += w
+		yposy += h
+		xposx += dt
+		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}
 	// layout page
 	bk.SetPos(xposx, yposy)

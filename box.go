@@ -46,6 +46,8 @@ type Boxes struct {
 
 	Cropmark *creator.Block
 	Outline  bool
+
+	DeltaPos float64 // used to adjust / modify positions
 }
 
 func (bb *Boxes) NewSheet() {

@@ -36,9 +36,11 @@ padding:
 
 		natural = append(natural, in[i:i+weld]...)
 		duplex = append(duplex, in[i+weld:i+2*weld])
+		// is this cycle at end?
 		if len(duplex)*weld < peak {
 			continue
 		}
+		// process results of cycle
 		if reversed {
 			rev := [][]int{}
 			for i := len(duplex) - 1; i >= 0; i-- {
@@ -48,8 +50,11 @@ padding:
 		}
 		if flip {
 			flipped := [][]int{}
-			for i := colweld - 1; i >= 0; i-- {
-				flipped = append(flipped, duplex[i])
+			for len(duplex) > 0 {
+				for i := colweld - 1; i >= 0; i-- {
+					flipped = append(flipped, duplex[i])
+				}
+				duplex = duplex[colweld:]
 			}
 			duplex = flipped
 		}
@@ -63,6 +68,7 @@ padding:
 		out = append(out, natural...)
 		out = append(out, flat...)
 
+		// start a new cycle
 		natural, duplex = []int{}, [][]int{}
 	}
 	return
