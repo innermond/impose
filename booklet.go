@@ -32,7 +32,7 @@ func (bb *Boxes) Booklet(
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println(pxp)
 	// calculate creeping as ints with a multiplier because go do not have generics
 	// and our duplex.Reflow accepts []int not []float64
 	creepx := []int{}
@@ -63,6 +63,7 @@ func (bb *Boxes) Booklet(
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(pxp)
 
 	bb.Num = len(pxp)
 
@@ -83,16 +84,22 @@ func (bb *Boxes) Booklet(
 		fmt.Print("\a\n")
 	}()
 
-	// cycle every page and draw it
-	bb.Cycle(pxp, counter, func(i int) {
+	adjuster := func(i int) {
 		bb.DeltaPos = float64(creepx[i]) / multiplier
-	})
+	}
+	// cycle every page and draw it
+	bb.CycleAdjusted(pxp, counter, adjuster)
 	// put cropmarks for the last sheet
 	bb.DrawCropmark()
 
 }
 
-func (bb *Boxes) Cycle(pxp []int, c chan int, adjuster func(i int)) {
+// proxy func
+func (bb *Boxes) Cycle(pxp []int, c chan int) {
+	bb.CycleAdjusted(pxp, c, nil)
+}
+
+func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
 	var (
 		err        error
 		maxOnSheet = bb.Col * bb.Row
