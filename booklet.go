@@ -32,6 +32,7 @@ func (bb *Boxes) Booklet(
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("reflow", pxp)
 	// calculate creeping as ints with a multiplier because go do not have generics
 	// and our duplex.Reflow accepts []int not []float64
 	creepx := []int{}
@@ -51,8 +52,14 @@ func (bb *Boxes) Booklet(
 		creepx = append(creepx, -i*dxint)
 	}
 	// reverse+flip are args
+	// when duplex is flip-ed (along printing direction - long edge in most cases)
+	//reverse := false
+	//flip := false
+	// when duplex is turn-ed (crossing printing direction - short edge in most cases)
+	// duplex pages must be rotated 180
+	turn := true
 	reverse := false
-	flip := true
+	flip := false
 	// calculate creep to coresponds with duplexed pxp
 	creepx, err = duplex.Reflow(creepx, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
@@ -62,6 +69,7 @@ func (bb *Boxes) Booklet(
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("duplex", pxp)
 
 	bb.Num = len(pxp)
 
@@ -82,14 +90,37 @@ func (bb *Boxes) Booklet(
 		fmt.Print("\a\n")
 	}()
 
-	adjuster := func(i int) {
-		bb.DeltaPos = float64(creepx[i]) / multiplier
-	}
+	adjuster := bb.Adjuster(turn, creepx, multiplier)
 	// cycle every page and draw it
 	bb.CycleAdjusted(pxp, counter, adjuster)
 	// put cropmarks for the last sheet
 	bb.DrawCropmark()
 
+}
+
+func (bb *Boxes) Adjuster(turn bool, creepx []int, multiplier float64) func(int) {
+	var isBack, isFace, stilBack, stilFace bool
+	return func(i int) {
+		if turn && i >= bb.Col*bb.Row {
+			// is on a duplex page ? all 2th page is duplex
+			zero := int(math.Ceil(float64(i+1)/float64(bb.Col*bb.Row))) % 2
+
+			isBack = zero == 0
+			isFace = !isBack
+
+			if !stilBack && isBack {
+				stilBack = true
+				stilFace = false
+				bb.Small.Angle -= 180.0
+			} else if !stilFace && isFace {
+				stilBack = false
+				stilFace = true
+				bb.Small.Angle += 180.0
+			}
+			log.Println(i, bb.Small.Angle)
+		}
+		bb.DeltaPos = float64(creepx[i]) / multiplier
+	}
 }
 
 // proxy func
