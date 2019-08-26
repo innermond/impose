@@ -14,8 +14,6 @@ import (
 	"github.com/unidoc/unipdf/v3/creator"
 )
 
-const nothere = "duplex_value"
-
 func main() {
 	err := param()
 	if err != nil {
@@ -168,35 +166,34 @@ func main() {
 		)
 	}
 
-	// we have duplex but not explicit
-	if len(duplex) == 0 {
-		// reverse flow seen as 1 to col
-		if len(flow) == 0 {
-			for i := col; i > 0; i-- {
-				duplex += strconv.Itoa(i) + ","
-			}
-			duplex = duplex[0 : len(duplex)-1]
-		} else {
-			for i := len(flow); i > 0; i += 2 {
-				duplex += flow[i : i-1]
-			}
-		}
-	} else if duplex == nothere {
-		duplex = ""
-	}
-
 	if repeat {
 		bb.Repeat(pags)
 	} else if bookletMode {
 		bb.Booklet(
 			pags,
 			creep,
+			flip, reverse, turn,
 		)
 	} else {
-		/*	bb.Impose(
-			flow, duplex,
+		flowArr := []int{}
+		if len(flow) < 1 {
+			flowArr = []int{0}
+		} else {
+			flowStr := strings.Split(flow, ",")
+			for _, val := range flowStr {
+				inx, err := strconv.Atoi(val)
+				if err != nil {
+					log.Fatal(err)
+				}
+				flowArr = append(flowArr, inx)
+			}
+		}
+		bb.Impose(
 			pags,
-		)*/
+			flowArr,
+			weld,
+			flip, reverse, turn,
+		)
 	}
 
 	err = c.WriteToFile(fout)

@@ -26,7 +26,11 @@ var (
 	repeat                   bool
 	grid                     string
 	flow                     string
-	duplex                   string
+	duplex                   bool
+	flip                     bool
+	reverse                  bool
+	turn                     float64
+	weld                     int
 	angle                    float64
 	bleed, bleedx, bleedy    float64
 	offset, offx, offy       float64
@@ -81,6 +85,12 @@ var (
 		"nocropmark": true,
 		"outline":    true,
 	}
+	duplexFlags = map[string]bool{
+		"flip":    true,
+		"turn":    true,
+		"reverse": true,
+		"duplex":  true,
+	}
 )
 
 func initFileFlags(flagset *flag.FlagSet) {
@@ -110,9 +120,7 @@ func initPositionFlags(flagset *flag.FlagSet) {
 
 func initGridFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
-	flagset.StringVar(&flow, "flow", "", "it works along with grid flag. how pages are ordered on every row, they are flowing from 1 to col, but that can be changed, ex: 4,2,1,3")
 	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
-	flagset.StringVar(&duplex, "duplex", "", "duplex indicate back sheet flow")
 }
 
 func initMarkFlags(flagset *flag.FlagSet) {
@@ -141,6 +149,14 @@ func commonFlags() map[string]bool {
 		}
 	}
 	return out
+}
+
+func initFlagDuplex(flagset *flag.FlagSet) {
+	flagset.Float64Var(&turn, "turn", 0.0, "rotate page with specified angle")
+	flagset.BoolVar(&flip, "flip", false, "flip grouped pages")
+	flagset.BoolVar(&reverse, "reverse", false, "reverse order of pages")
+	flagset.StringVar(&flow, "flow", "", "change natural order of pages")
+	flagset.IntVar(&weld, "weld", 1, "lenght of pages group")
 }
 
 func param() error {
@@ -178,9 +194,11 @@ func param() error {
 		bookletMode = true
 		// specific flag
 		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
+		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 	default:
 		same, spec = clivide(os.Args[1:], commonFlags())
+		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 		if !isFlag(cmd) {
 			usage = usagefn("not defined")

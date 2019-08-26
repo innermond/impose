@@ -44,6 +44,12 @@ padding:
 		if reversed {
 			rev := [][]int{}
 			for i := len(duplex) - 1; i >= 0; i-- {
+				// reverse duplex[i]
+				revdup := []int{}
+				for j := len(duplex[i]) - 1; j >= 0; j-- {
+					revdup = append(revdup, duplex[i][j])
+				}
+				duplex[i] = revdup
 				rev = append(rev, duplex[i])
 			}
 			duplex = rev

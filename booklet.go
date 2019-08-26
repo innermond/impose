@@ -14,6 +14,8 @@ import (
 func (bb *Boxes) Booklet(
 	pxp []int,
 	creep float64,
+	flip, reverse bool,
+	turn float64,
 ) {
 	// proxy variables
 	var (
@@ -32,7 +34,6 @@ func (bb *Boxes) Booklet(
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("reflow", pxp)
 	// calculate creeping as ints with a multiplier because go do not have generics
 	// and our duplex.Reflow accepts []int not []float64
 	creepx := []int{}
@@ -57,9 +58,6 @@ func (bb *Boxes) Booklet(
 	//flip := false
 	// when duplex is turn-ed (crossing printing direction - short edge in most cases)
 	// duplex pages must be rotated 180
-	turn := true
-	reverse := false
-	flip := false
 	// calculate creep to coresponds with duplexed pxp
 	creepx, err = duplex.Reflow(creepx, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
@@ -69,7 +67,6 @@ func (bb *Boxes) Booklet(
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("duplex", pxp)
 
 	bb.Num = len(pxp)
 
@@ -98,10 +95,10 @@ func (bb *Boxes) Booklet(
 
 }
 
-func (bb *Boxes) Adjuster(turn bool, creepx []int, multiplier float64) func(int) {
+func (bb *Boxes) Rotator(turn float64) func(int) {
 	var isBack, isFace, stilBack, stilFace bool
 	return func(i int) {
-		if turn && i >= bb.Col*bb.Row {
+		if turn != 0.0 && i >= bb.Col*bb.Row {
 			// is on a duplex page ? all 2th page is duplex
 			zero := int(math.Ceil(float64(i+1)/float64(bb.Col*bb.Row))) % 2
 
@@ -111,13 +108,35 @@ func (bb *Boxes) Adjuster(turn bool, creepx []int, multiplier float64) func(int)
 			if !stilBack && isBack {
 				stilBack = true
 				stilFace = false
-				bb.Small.Angle -= 180.0
+				bb.Small.Angle -= turn
 			} else if !stilFace && isFace {
 				stilBack = false
 				stilFace = true
-				bb.Small.Angle += 180.0
+				bb.Small.Angle += turn
 			}
-			log.Println(i, bb.Small.Angle)
+		}
+	}
+}
+
+func (bb *Boxes) Adjuster(turn float64, creepx []int, multiplier float64) func(int) {
+	var isBack, isFace, stilBack, stilFace bool
+	return func(i int) {
+		if turn != 0.0 && i >= bb.Col*bb.Row {
+			// is on a duplex page ? all 2th page is duplex
+			zero := int(math.Ceil(float64(i+1)/float64(bb.Col*bb.Row))) % 2
+
+			isBack = zero == 0
+			isFace = !isBack
+
+			if !stilBack && isBack {
+				stilBack = true
+				stilFace = false
+				bb.Small.Angle -= turn
+			} else if !stilFace && isFace {
+				stilBack = false
+				stilFace = true
+				bb.Small.Angle += turn
+			}
 		}
 		bb.DeltaPos = float64(creepx[i]) / multiplier
 	}
