@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -45,12 +44,8 @@ func main() {
 	}
 	// get pages for imposition
 	sel := pange.Selection(pages)
-	ppp, err := sel.Split()
-	if err != nil {
-		log.Fatal(err)
-	}
 	// all pages as a slice of ints
-	pags, err := sel.Full(ppp...)
+	pags, err := sel.Full()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,21 +57,9 @@ func main() {
 		row int = 1
 	)
 
-	// parse grid; has form like 2x1, at minimum 3 chars
-	if len(grid) > 2 && strings.Contains(grid, "x") {
-		colrow := strings.Split(grid, "x")
-		if len(colrow) != 2 {
-			log.Fatal(errors.New("grid length invalid"))
-		}
-
-		col, err = strconv.Atoi(colrow[0])
-		if err != nil {
-			log.Fatal(err)
-		}
-		row, err = strconv.Atoi(colrow[1])
-		if err != nil {
-			log.Fatal(err)
-		}
+	col, row, err = parsex(grid)
+	if err != nil {
+		log.Fatal("grid: ", err)
 	}
 
 	// bookletMode need  certain grid and page order
@@ -106,9 +89,14 @@ func main() {
 	exth := offy + markh
 
 	beSwitched := angle == 90.0 || angle == -90 || angle == 270 || angle == -270
+	clonex, cloney := 1, 1
+	clonex, cloney, err = parsex(clone)
+	if err != nil {
+		log.Fatal("clone: ", err)
+	}
 	if autopage {
-		width = left + float64(col)*w + right + 2*extw + 2*autopadding
-		height = top + float64(row)*h + bottom + 2*exth + 2*autopadding
+		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
+		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
 			width = left + float64(col)*h + right + 2*extw + 2*autopadding
 			height = top + float64(row)*w + bottom + 2*exth + 2*autopadding

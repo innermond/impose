@@ -23,8 +23,9 @@ var (
 	center, centerx, centery bool
 	pages                    string
 	postfix                  string
-	repeat                   bool
 	grid                     string
+	repeat                   bool
+	clone                    string
 	flow                     string
 	duplex                   bool
 	flip                     bool
@@ -194,6 +195,7 @@ func param() error {
 		bookletMode = true
 		// specific flag
 		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
+		flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
 		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 	default:

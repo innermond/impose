@@ -1,6 +1,11 @@
 package main
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 func isFlag(fg string) bool {
 	is := len(fg) > 1 && fg[0] == '-' && fg[len(fg)-1] != '-'
@@ -55,5 +60,35 @@ func clivide(cli []string, comflags map[string]bool) (common, specific []string)
 		}
 		i++
 	}
+	return
+}
+
+func parsex(x string) (col, row int, err error) {
+	// default value
+	if grid == "" {
+		return 1, 1, nil
+	}
+
+	// parse grid; has form like 2x1, at minimum 3 chars
+	if len(x) < 3 || !strings.Contains(x, "x") {
+		err = fmt.Errorf("invalid grid value %q", x)
+		return
+	}
+
+	colrow := strings.Split(x, "x")
+	if len(colrow) != 2 {
+		err = errors.New("grid length invalid")
+		return
+	}
+
+	col, err = strconv.Atoi(colrow[0])
+	if err != nil {
+		return
+	}
+	row, err = strconv.Atoi(colrow[1])
+	if err != nil {
+		return
+	}
+
 	return
 }
