@@ -36,10 +36,10 @@ type SmallBox struct {
 }
 
 type Boxes struct {
-	Big      *BigBox
-	Small    *SmallBox
-	Col, Row int
-	Num      int
+	Big                      *BigBox
+	Small                    *SmallBox
+	Col, Row, CloneX, CloneY int
+	Num                      int
 
 	Creator *creator.Creator
 	Reader  *PdfReader
@@ -63,7 +63,7 @@ func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
 	for wpages < available {
 		wpages += bb.Small.Width
 		// sensible to grid
-		if i == bb.Col {
+		if i == bb.Col*bb.CloneX {
 			break
 		}
 		i++
@@ -80,7 +80,7 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 	for hpages < available {
 		hpages += bb.Small.Height
 		// sensible to grid
-		if i == bb.Row {
+		if i == bb.Row*bb.CloneY {
 			break
 		}
 		i++
@@ -94,12 +94,12 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 const epsilon = 1e-9
 
 func (bb *Boxes) EnoughWidth() bool {
-	dif := bb.Big.AvailableWidth() - float64(bb.Col)*bb.Small.Width
+	dif := bb.Big.AvailableWidth() - float64(bb.Col*bb.CloneX)*bb.Small.Width
 	return dif > 0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	dif := bb.Big.AvailableHeight() - float64(bb.Row)*bb.Small.Height
+	dif := bb.Big.AvailableHeight() - float64(bb.Row*bb.CloneY)*bb.Small.Height
 	return dif > 0 || math.Abs(dif) < epsilon
 }
 
@@ -164,7 +164,7 @@ func (bb *Boxes) CreateCropmark(
 ) {
 	cropbk := &CropMarkBlock{bb.Small.Width, bb.Small.Height,
 		bleedx, bleedy,
-		bb.Col, bb.Row,
+		bb.Col * bb.CloneX, bb.Row * bb.CloneY,
 		extw, exth,
 		markw, markh,
 		bb,

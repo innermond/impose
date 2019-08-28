@@ -109,7 +109,7 @@ func main() {
 
 	bigbox := &impose.BigBox{&impose.Box{width, height, top, right, bottom, left}}
 	smallbox := &impose.SmallBox{&impose.Box{Width: w, Height: h}, angle}
-	bb := &impose.Boxes{bigbox, smallbox, col, row, np, c, pdf, nil, outline, 0.0}
+	bb := &impose.Boxes{bigbox, smallbox, col, row, clonex, cloney, np, c, pdf, nil, outline, 0.0}
 
 	angled := false
 	if beSwitched {
