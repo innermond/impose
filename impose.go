@@ -33,12 +33,10 @@ func (bb *Boxes) Impose(
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(pxp)
 	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(pxp)
 
 	bb.Num = len(pxp)
 
