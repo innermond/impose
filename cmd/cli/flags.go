@@ -67,6 +67,7 @@ var (
 	}
 	gridFlags = map[string]bool{
 		"grid":   true,
+		"clone":  true,
 		"flow":   true,
 		"pages":  true,
 		"duplex": true,
@@ -121,6 +122,7 @@ func initPositionFlags(flagset *flag.FlagSet) {
 
 func initGridFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
+	flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
 	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
 }
 
@@ -195,7 +197,6 @@ func param() error {
 		bookletMode = true
 		// specific flag
 		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
-		flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
 		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 	default:
