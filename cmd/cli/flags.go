@@ -121,8 +121,12 @@ func initPositionFlags(flagset *flag.FlagSet) {
 }
 
 func initGridFlags(flagset *flag.FlagSet) {
-	flagset.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
-	flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
+	if gridFlags["grid"] {
+		flagset.StringVar(&grid, "grid", "", "imposition layout columns x  rows. ex: 2x3")
+	}
+	if gridFlags["clone"] {
+		flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
+	}
 	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
 }
 
@@ -185,8 +189,12 @@ func param() error {
 	// start to initialize flags definition
 	switch cmd {
 	case "repeat":
-		// ./impose repeat ...
-		same, spec = clivide(os.Args[2:], commonFlags())
+		// ./impose repeat 3x2 ...
+		grid = "1x1"
+		gridFlags["grid"] = false
+		clone = os.Args[2]
+		gridFlags["clone"] = false
+		same, spec = clivide(os.Args[3:], commonFlags())
 		repeat = true
 		// setup specifi flags then
 		// parse specific flag if any
