@@ -98,8 +98,8 @@ func main() {
 		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
 		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = left + float64(col)*h + right + 2*extw + 2*autopadding
-			height = top + float64(row)*w + bottom + 2*exth + 2*autopadding
+			width = left + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
+			height = top + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
 	}
 
