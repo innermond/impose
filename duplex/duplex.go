@@ -1,5 +1,7 @@
 package duplex
 
+import "fmt"
+
 func Reflow(in []int, weld, col, row int, reversed, flip bool) (out []int, err error) {
 	// weld is length for elements grouping
 	// assume every 2th group elements is subject duplex
@@ -27,6 +29,11 @@ padding:
 		}
 		// fill with zeroes
 		len0 = peak
+	}
+
+	if weld > col || col%weld != 0 {
+		err = fmt.Errorf("unsynced weld %d with col %d; weld must divide col", weld, col)
+		return
 	}
 
 	colweld := col / weld
