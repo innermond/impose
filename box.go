@@ -52,7 +52,7 @@ type Boxes struct {
 
 func (bb *Boxes) NewSheet() {
 	sheet := model.NewPdfPage()
-	sheet.MediaBox = &model.PdfRectangle{0, 0, bb.Big.Width, bb.Big.Height}
+	sheet.MediaBox = &model.PdfRectangle{Llx: 0, Lly: 0, Urx: bb.Big.Width, Ury: bb.Big.Height}
 	bb.Creator.AddPage(sheet)
 }
 

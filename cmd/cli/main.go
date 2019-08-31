@@ -107,9 +107,31 @@ func main() {
 	c := creator.New()
 	c.SetPageSize(creator.PageSize{width, height})
 
-	bigbox := &impose.BigBox{&impose.Box{width, height, top, right, bottom, left}}
-	smallbox := &impose.SmallBox{&impose.Box{Width: w, Height: h}, angle}
-	bb := &impose.Boxes{bigbox, smallbox, col, row, clonex, cloney, np, c, pdf, nil, outline, 0.0}
+	bigbox := &impose.BigBox{
+		Box: &impose.Box{
+			Width:  width,
+			Height: height,
+			Top:    top,
+			Right:  right,
+			Bottom: bottom,
+			Left:   left,
+		},
+	}
+	smallbox := &impose.SmallBox{Box: &impose.Box{Width: w, Height: h}, Angle: angle}
+	bb := &impose.Boxes{
+		Big:      bigbox,
+		Small:    smallbox,
+		Col:      col,
+		Row:      row,
+		CloneX:   clonex,
+		CloneY:   cloney,
+		Num:      np,
+		Creator:  c,
+		Reader:   pdf,
+		Cropmark: nil,
+		Outline:  outline,
+		DeltaPos: 0.0,
+	}
 
 	angled := false
 	if beSwitched {
