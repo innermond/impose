@@ -166,9 +166,13 @@ func initFlagDuplex(flagset *flag.FlagSet) {
 	flagset.IntVar(&weld, "weld", 1, "lenght of pages group")
 }
 
+var ErrNoArguments = errors.New("no arguments provided")
+
 func param() error {
 	// set common flags
-
+	if len(os.Args) == 1 {
+		return ErrNoArguments
+	}
 	var (
 		err error
 
