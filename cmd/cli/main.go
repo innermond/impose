@@ -16,6 +16,10 @@ import (
 func main() {
 	err := param()
 	if err != nil {
+		if impose.ErrorCode(err) == impose.EINVALID {
+			fmt.Println(impose.ErrorMessage(err))
+			os.Exit(1)
+		}
 		log.Fatal(err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/innermond/impose"
 	"github.com/unidoc/unipdf/v3/creator"
 )
 
@@ -166,13 +167,12 @@ func initFlagDuplex(flagset *flag.FlagSet) {
 	flagset.IntVar(&weld, "weld", 1, "lenght of pages group")
 }
 
-var ErrNoArguments = errors.New("no arguments provided")
-
 func param() error {
 	// set common flags
 	if len(os.Args) == 1 {
-		return ErrNoArguments
+		return &impose.Error{Code: impose.EINVALID, Message: "no arguments provided"}
 	}
+
 	var (
 		err error
 
