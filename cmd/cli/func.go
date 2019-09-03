@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -91,4 +92,10 @@ func parsex(x string) (col, row int, err error) {
 	}
 
 	return
+}
+
+// exit with message shown to end user
+func leave(msg string) {
+	fmt.Println(msg)
+	os.Exit(1)
 }

@@ -16,21 +16,27 @@ import (
 func main() {
 	err := param()
 	if err != nil {
+		// known error
 		if impose.ErrorCode(err) == impose.EINVALID {
-			fmt.Println(impose.ErrorMessage(err))
-			os.Exit(1)
+			leave(impose.ErrorMessage(err))
 		}
+		// unknown error
 		log.Fatal(err)
 	}
 
 	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		log.Printf("time taken %v\n", elapsed)
+	}()
 
 	// Read the input pdf file.
 	f, err := os.Open(fn)
 	if err != nil {
-		log.Fatal(err)
+		leave(fmt.Sprintf("file %q not available\n", fn))
 	}
 	defer f.Close()
+
 	// read first pdf page
 	log.Printf("read pdf of %q", fn)
 	pdf, err := impose.NewReader(f, bleedx, bleedy)
@@ -215,8 +221,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	elapsed := time.Since(start)
-
-	log.Printf("time taken %v\n", elapsed)
 	log.Printf("file %s written\n", fout)
 }
