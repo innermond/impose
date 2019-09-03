@@ -17,13 +17,18 @@ func main() {
 	err := param()
 	if err != nil {
 		if impose.ErrorCode(err) == impose.EINVALID {
-			fmt.Println(impose.ErrorMessage(err))
+			// errors only on stderr - stdout is for output not diagnostics
+			fmt.Fprintln(os.Stderr, impose.ErrorMessage(err))
 			os.Exit(1)
 		}
 		log.Fatal(err)
 	}
 
 	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		log.Printf("time taken %v\n", elapsed)
+	}()
 
 	// Read the input pdf file.
 	f, err := os.Open(fn)
@@ -180,10 +185,11 @@ func main() {
 		)
 	}
 
+	counter := make(chan int)
 	if repeat {
-		bb.Repeat(pags)
+		counter = bb.Repeat(pags)
 	} else if bookletMode {
-		bb.Booklet(
+		counter = bb.Booklet(
 			pags,
 			creep,
 			flip, reverse, turn,
@@ -202,7 +208,7 @@ func main() {
 				flowArr = append(flowArr, inx)
 			}
 		}
-		bb.Impose(
+		counter = bb.Impose(
 			pags,
 			flowArr,
 			weld,
@@ -210,13 +216,17 @@ func main() {
 		)
 	}
 
-	err = c.WriteToFile(fout)
+	for {
+		num, more := <-counter
+		if more {
+			log.Println("Page ", num)
+		} else {
+			break
+		}
+	}
+
+	err = c.Write(os.Stdout)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	elapsed := time.Since(start)
-
-	log.Printf("time taken %v\n", elapsed)
-	log.Printf("file %s written\n", fout)
 }

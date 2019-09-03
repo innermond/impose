@@ -1,11 +1,9 @@
 package impose
 
 import (
-	"fmt"
 	"log"
 	"math"
 
-	"github.com/cheggaaa/pb/v3"
 	"github.com/innermond/impose/duplex"
 	"github.com/innermond/impose/reflow"
 )
@@ -15,7 +13,7 @@ func (bb *Boxes) Booklet(
 	creep float64,
 	flip, reverse bool,
 	turn float64,
-) {
+) chan int {
 	// proxy variables
 	var (
 		err error
@@ -69,26 +67,13 @@ func (bb *Boxes) Booklet(
 
 	bb.Num = len(pxp)
 
-	// decouple progress bar by drawing mechanics
+	adjuster := bb.Adjuster(turn, creepx, multiplier)
 	counter := make(chan int)
 	go func() {
-		bar := pb.StartNew(bb.Num)
-		for {
-			_, more := <-counter
-			if more {
-				bar.Increment()
-			} else {
-				break
-			}
-		}
-		bar.Finish()
-		// ring terminal bell once
-		fmt.Print("\a\n")
+		// cycle every page and draw it
+		bb.CycleAdjusted(pxp, counter, adjuster)
+		// put cropmarks for the last sheet
+		bb.DrawCropmark()
 	}()
-
-	adjuster := bb.Adjuster(turn, creepx, multiplier)
-	// cycle every page and draw it
-	bb.CycleAdjusted(pxp, counter, adjuster)
-	// put cropmarks for the last sheet
-	bb.DrawCropmark()
+	return counter
 }

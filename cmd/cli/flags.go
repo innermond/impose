@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/innermond/impose"
@@ -14,7 +13,6 @@ import (
 
 var (
 	fn                       string
-	fout                     string
 	width                    float64
 	height                   float64
 	autopage                 bool
@@ -99,7 +97,6 @@ var (
 func initFileFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&unit, "unit", "mm", "unit of measurements")
 	flagset.StringVar(&fn, "f", "", "source pdf file")
-	flagset.StringVar(&fout, "o", "", "imposition pdf file")
 	flagset.StringVar(&postfix, "postfix", "imposition", "final page termination")
 }
 
@@ -300,11 +297,6 @@ func param() error {
 	offy -= bleedy
 
 	postfix = fmt.Sprintf(".%s", strings.TrimSpace(strings.Trim(postfix, ".")))
-
-	if fout == "" {
-		ext := path.Ext(fn)
-		fout = fn[:len(fn)-len(ext)] + postfix + ext
-	}
 
 	if !autopage {
 		autopadding = 0.0
