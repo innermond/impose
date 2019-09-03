@@ -15,14 +15,7 @@ import (
 
 func main() {
 	err := param()
-	if err != nil {
-		if impose.ErrorCode(err) == impose.EINVALID {
-			// errors only on stderr - stdout is for output not diagnostics
-			fmt.Fprintln(os.Stderr, impose.ErrorMessage(err))
-			os.Exit(1)
-		}
-		log.Fatal(err)
-	}
+	deal(err)
 
 	start := time.Now()
 	defer func() {
@@ -32,21 +25,18 @@ func main() {
 
 	// Read the input pdf file.
 	f, err := os.Open(fn)
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
 	defer f.Close()
+
 	// read first pdf page
 	log.Printf("read pdf of %q", fn)
 	pdf, err := impose.NewReader(f, bleedx, bleedy)
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
+
 	// establish pages number
 	np, err := pdf.GetNumPages()
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
+
 	// from 1 to last
 	if pages == "" {
 		pages = fmt.Sprintf("1-%d", np)
@@ -55,9 +45,7 @@ func main() {
 	sel := pange.Selection(pages)
 	// all pages as a slice of ints
 	pags, err := sel.Full()
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
 	np = len(pags)
 
 	// grid
@@ -67,9 +55,7 @@ func main() {
 	)
 
 	col, row, err = parsex(grid)
-	if err != nil {
-		log.Fatal("grid: ", err)
-	}
+	fatal("grid: ", err)
 
 	// bookletMode need  certain grid and page order
 	if bookletMode {
@@ -83,13 +69,9 @@ func main() {
 
 	// assume all pages has the same dimensions as first one
 	page, err := pdf.GetPage(1)
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
 	bbox, err := page.GetMediaBox()
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
@@ -100,9 +82,7 @@ func main() {
 	beSwitched := angle == 90.0 || angle == -90 || angle == 270 || angle == -270
 	clonex, cloney := 1, 1
 	clonex, cloney, err = parsex(clone)
-	if err != nil {
-		log.Fatal("clone: ", err)
-	}
+	fatal("clone: ", err)
 	if autopage {
 		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
 		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
@@ -226,7 +206,5 @@ func main() {
 	}
 
 	err = c.Write(os.Stdout)
-	if err != nil {
-		log.Fatal(err)
-	}
+	fatal(err)
 }
