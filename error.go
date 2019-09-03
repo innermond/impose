@@ -8,7 +8,7 @@ import (
 // direct copy from https://middlemost.com/failure-is-your-domain/
 // Err cannot coexist with Code or Message
 type Error struct {
-	Code    string
+	Code    ErrCode
 	Message string
 	Op      string
 	Err     error
@@ -36,21 +36,23 @@ func (e *Error) Error() string {
 	return buf.String()
 }
 
+type ErrCode string
+
 // Application error codes
 const (
-	ECONFLICT = "conflict"
-	EINTERNAL = "internal"
-	EINVALID  = "invalid"
-	ENOTFOUND = "not_found"
+	ECONFLICT ErrCode = "conflict"
+	EINTERNAL ErrCode = "internal"
+	EINVALID  ErrCode = "invalid"
+	ENOTFOUND ErrCode = "not_found"
 )
 
-func ErrorCode(err error) string {
+func ErrorCode(err error) ErrCode {
 	if err == nil {
 		return ""
 	}
 
 	if e, ok := err.(*Error); ok && e.Code != "" {
-		return e.Code
+		return ErrCode(e.Code)
 	} else if ok && e.Err != nil {
 		return ErrorCode(e.Err)
 	}
