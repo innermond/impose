@@ -3,8 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
+
+	"github.com/innermond/impose"
 )
 
 func isFlag(fg string) bool {
@@ -91,4 +94,29 @@ func parsex(x string) (col, row int, err error) {
 	}
 
 	return
+}
+
+func deal(err error) {
+	// no error
+	if err == nil {
+		return
+	}
+
+	// impose errors
+	switch impose.ErrCode(err.Error()) {
+	case impose.EINVALID, impose.ECONFLICT, impose.ENOTFOUND, impose.EINTERNAL:
+		log.Fatal(impose.ErrorMessage(err))
+	default:
+		log.Fatal(err)
+	}
+}
+
+func fatal(err ...interface{}) {
+	// accept no nil
+	for _, e := range err {
+		if e == nil {
+			return
+		}
+	}
+	log.Fatal(err...)
 }
