@@ -181,7 +181,7 @@ func param() error {
 		usage   func()
 		usagefn = func(msg string) func() {
 			return func() {
-				fmt.Println(msg)
+				fmt.Fprintf(os.Stderr, "%s\n", msg)
 				flagset.Usage()
 				os.Exit(1)
 			}
@@ -226,7 +226,7 @@ func param() error {
 	// end common flags definition
 	flagset.Parse(same)
 	flagset.Usage = func() {
-		fmt.Printf(`  -repeat command
+		fmt.Fprintln(os.Stderr, `  -repeat command
 	repeat every requested page on imposition sheet in respect to grid
   -booklet command
   	booklet impose using a flow 4-1 2-3 dedicated for booklet
