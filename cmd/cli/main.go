@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -17,19 +18,39 @@ func main() {
 	err := param()
 	deal(err)
 
+	// catch termination
+	killChan := make(chan os.Signal, 1)
+	signal.Notify(killChan, os.Interrupt)
+	go func() {
+		<-killChan
+		if verbosity > 1 {
+			log.Println("user interruption")
+		}
+		os.Exit(1)
+	}()
+
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		log.Printf("time taken %v\n", elapsed)
+		if verbosity > 0 {
+			log.Printf("time taken %v\n", elapsed)
+		}
 	}()
 
 	// Read the input pdf file.
 	f, err := os.Open(fn)
 	fatal(err)
-	defer f.Close()
+	defer func() {
+		f.Close()
+		if verbosity > 2 {
+			log.Printf("close file %q\n", fn)
+		}
+	}()
 
 	// read first pdf page
-	log.Printf("read pdf of %q", fn)
+	if verbosity > 1 {
+		log.Printf("read pdf %q", fn)
+	}
 	pdf, err := impose.NewReader(f, bleedx, bleedy)
 	fatal(err)
 
@@ -65,7 +86,9 @@ func main() {
 		}
 	}
 
-	log.Println("parsed parameters")
+	if verbosity > 0 {
+		log.Println("parsed parameters")
+	}
 
 	// assume all pages has the same dimensions as first one
 	page, err := pdf.GetPage(1)
@@ -153,7 +176,9 @@ func main() {
 		log.Fatalf("%d rows do not fit", bb.Row)
 	}
 
-	log.Println("prepared boxes")
+	if verbosity > 0 {
+		log.Println("prepared boxes")
+	}
 
 	if showcropmark {
 		bb.CreateCropmark(
@@ -198,7 +223,7 @@ func main() {
 
 	for {
 		num, more := <-counter
-		if more {
+		if more && verbosity > 1 {
 			log.Println("Page ", num)
 		} else {
 			break

@@ -18,6 +18,7 @@ var (
 	autopage                 bool
 	autopadding              float64
 	unit                     string
+	verbosity                int
 	top, left, bottom, right float64
 	center, centerx, centery bool
 	pages                    string
@@ -43,10 +44,11 @@ var (
 
 var (
 	fileFlags = map[string]bool{
-		"f":       true,
-		"o":       true,
-		"postfix": true,
-		"unit":    true,
+		"f":         true,
+		"o":         true,
+		"postfix":   true,
+		"unit":      true,
+		"verbosity": true,
 	}
 	geometryFlags = map[string]bool{
 		"width":       true,
@@ -98,6 +100,7 @@ func initFileFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&unit, "unit", "mm", "unit of measurements")
 	flagset.StringVar(&fn, "f", "", "source pdf file")
 	flagset.StringVar(&postfix, "postfix", "imposition", "final page termination")
+	flagset.IntVar(&verbosity, "verbosity", 0, "data report amount")
 }
 
 func initGeometryFlags(flagset *flag.FlagSet) {
@@ -292,7 +295,7 @@ func param() error {
 		}
 	})
 	// last edge is further inside mediabox by bleed amount
-	// adjunst offsets otherwise they will be aware only by media edge
+	// adjust offsets otherwise they will be aware only by media edge
 	offx -= bleedx
 	offy -= bleedy
 
