@@ -17,9 +17,7 @@ func main() {
 	err := param()
 	if err != nil {
 		if impose.ErrorCode(err) == impose.EINVALID {
-			// errors only on stderr - stdout is for output not diagnostics
-			fmt.Fprintln(os.Stderr, impose.ErrorMessage(err))
-			os.Exit(1)
+			log.Fatal(impose.ErrorMessage(err))
 		}
 		log.Fatal(err)
 	}
