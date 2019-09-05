@@ -5,48 +5,53 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/innermond/impose"
 	"github.com/unidoc/unipdf/v3/creator"
 )
 
 var (
-	fn                       string
-	width                    float64
-	height                   float64
-	autopage                 bool
-	autopadding              float64
-	unit                     string
-	verbosity                int
+	fn     string
+	width  float64
+	height float64
+
+	autopage    bool
+	autopadding float64
+
+	unit string
+
 	top, left, bottom, right float64
+
 	center, centerx, centery bool
-	pages                    string
-	postfix                  string
-	grid                     string
-	repeat                   bool
-	clone                    string
-	flow                     string
-	duplex                   bool
-	flip                     bool
-	reverse                  bool
-	turn                     float64
-	weld                     int
-	angle                    float64
-	bleed, bleedx, bleedy    float64
-	offset, offx, offy       float64
-	marksize, markw, markh   float64
-	showcropmark             bool
-	bookletMode              bool
-	creep                    float64
-	outline                  bool
+
+	pages                  string
+	grid                   string
+	repeat                 bool
+	clone                  string
+	flow                   string
+	duplex                 bool
+	flip                   bool
+	reverse                bool
+	turn                   float64
+	weld                   int
+	angle                  float64
+	bleed, bleedx, bleedy  float64
+	offset, offx, offy     float64
+	marksize, markw, markh float64
+	showcropmark           bool
+	bookletMode            bool
+	creep                  float64
+	outline                bool
+
+	memprofile string
+	cpuprofile string
+	verbosity  int
 )
 
 var (
 	fileFlags = map[string]bool{
 		"f":         true,
 		"o":         true,
-		"postfix":   true,
 		"unit":      true,
 		"verbosity": true,
 	}
@@ -94,13 +99,15 @@ var (
 		"reverse": true,
 		"duplex":  true,
 	}
+	debugFlags = map[string]bool{
+		"mem": true,
+		"cpu": true,
+	}
 )
 
 func initFileFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&unit, "unit", "mm", "unit of measurements")
 	flagset.StringVar(&fn, "f", "", "source pdf file")
-	flagset.StringVar(&postfix, "postfix", "imposition", "final page termination")
-	flagset.IntVar(&verbosity, "verbosity", 0, "data report amount")
 }
 
 func initGeometryFlags(flagset *flag.FlagSet) {
@@ -147,10 +154,15 @@ func initViewFlags(flagset *flag.FlagSet) {
 	flagset.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
 	flagset.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 }
+func initDebugFlags(flagset *flag.FlagSet) {
+	flagset.StringVar(&memprofile, "mem", "", "memory profiling")
+	flagset.StringVar(&cpuprofile, "cpu", "", "cpu profiling")
+	flagset.IntVar(&verbosity, "verbosity", 0, "data report amount")
+}
 
 func commonFlags() map[string]bool {
 	out := map[string]bool{}
-	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags}
+	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags, debugFlags}
 	for _, ff := range fff {
 		for flagname, val := range ff {
 			out[flagname] = val
@@ -226,6 +238,7 @@ func param() error {
 	initGridFlags(flagset)
 	initMarkFlags(flagset)
 	initViewFlags(flagset)
+	initDebugFlags(flagset)
 	// end common flags definition
 	flagset.Parse(same)
 	flagset.Usage = func() {
@@ -290,16 +303,12 @@ func param() error {
 			}
 		case "nocropmark":
 			showcropmark = false
-		case "autopage":
-			autopage = true
 		}
 	})
 	// last edge is further inside mediabox by bleed amount
 	// adjust offsets otherwise they will be aware only by media edge
 	offx -= bleedx
 	offy -= bleedy
-
-	postfix = fmt.Sprintf(".%s", strings.TrimSpace(strings.Trim(postfix, ".")))
 
 	if !autopage {
 		autopadding = 0.0

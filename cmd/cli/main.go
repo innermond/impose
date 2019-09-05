@@ -18,6 +18,9 @@ func main() {
 	err := param()
 	deal(err)
 
+	// profiling
+	cpu()
+
 	// catch termination
 	killChan := make(chan os.Signal, 1)
 	signal.Notify(killChan, os.Interrupt)
@@ -223,8 +226,10 @@ func main() {
 
 	for {
 		num, more := <-counter
-		if more && verbosity > 1 {
-			log.Println("Page ", num)
+		if more {
+			if verbosity > 1 {
+				log.Println("Page ", num)
+			}
 		} else {
 			break
 		}
@@ -232,4 +237,7 @@ func main() {
 
 	err = c.Write(os.Stdout)
 	fatal(err)
+
+	// profilng
+	mem()
 }
