@@ -83,8 +83,9 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 	//rect := c.NewRectangle(0.0, 0.0, cros2bw, cros2bh)
 	//rect.SetBorderColor(creator.ColorBlack)
 	//cros2b.Draw(rect)
+	//crosb.SetPos(-1*cros2bw, -1*cros2bh)
 	crosb.SetAngle(-180)
-	crosb.SetPos(cros2bw, cros2bh)
+	crosb.SetPos(0, 0)
 	cros2b.Draw(crosb)
 
 	return cros2b

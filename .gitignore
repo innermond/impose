@@ -4,6 +4,7 @@
 *.json
 *.z
 *.map
+*.swp
 cmd/cli/cli
 tmp
 
