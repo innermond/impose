@@ -80,8 +80,10 @@ grid:
 				bb.Big.Width,
 				bb.Big.Height,
 			)
+			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
 				if i >= bb.Num {
+          bb.putRow(rowbk)
 					break grid
 				}
 				// check the need for a new page
@@ -92,6 +94,7 @@ grid:
 					// put cropmarks on sheet
 					bb.DrawCropmark()
 					// initialize position
+          xpos = bb.Big.Left
 					ypos = bb.Big.Top
 					bb.NewSheet()
 					nextSheet = false
@@ -105,26 +108,32 @@ grid:
 						log.Fatal(err)
 					}
 				}
-				// count pages processed
+				// count elements processed
 				i++
 				// signal page drawing
 				c <- i
 				xpos += float64(w)
 			}
-			for j := 0; j < bb.CloneY; j++ {
-				for i := 0; i < bb.CloneX; i++ {
-					rowbk.SetPos(
-						float64(i)*float64(bb.Col)*bb.Small.Width,
-						float64(j)*float64(bb.Row)*bb.Small.Height,
-					)
-					bb.Creator.Draw(rowbk)
-				}
-			}
+      bb.putRow(rowbk)
 			ypos += float64(h)
 			xpos = bb.Big.Left
 		}
 	}
 	close(c)
+}
+
+func (bb *Boxes) putRow(rowbk *creator.Block) {
+  for j := 0; j < bb.CloneY; j++ {
+    for i := 0; i < bb.CloneX; i++ {
+      var xk = float64(i)*float64(bb.Col)*bb.Small.Width 
+      var yk = float64(j)*float64(bb.Row)*bb.Small.Height
+if i == 65 {
+log.Println(xk, yk)
+}
+      rowbk.SetPos(xk, yk)
+      bb.Creator.Draw(rowbk)
+    }
+  }
 }
 
 func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64) error {

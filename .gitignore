@@ -5,6 +5,7 @@
 *.z
 *.map
 *.swp
+*.swo
 cmd/cli/cli
 tmp
 

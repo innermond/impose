@@ -3,7 +3,7 @@ package impose
 import (
 	"log"
 
-	"github.com/innermond/impose/duplex"
+_	"github.com/innermond/impose/duplex"
 	"github.com/innermond/impose/reflow"
 )
 
@@ -31,11 +31,13 @@ func (bb *Boxes) Impose(
 	if err != nil {
 		log.Fatal(err)
 	}
-	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
+
+// TODO duplex command or flag
+/*	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+*/
 	bb.Num = len(pxp)
 
 	adjuster := bb.Rotator(turn)
