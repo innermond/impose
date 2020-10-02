@@ -195,7 +195,7 @@ func main() {
 
 	counter := make(chan int)
 	if repeat {
-		counter = bb.Repeat(pags)
+		counter = bb.Repeat(pags, turn)
 	} else if bookletMode {
 		counter = bb.Booklet(
 			pags,
@@ -220,7 +220,7 @@ func main() {
 			pags,
 			flowArr,
 			weld,
-			flip, reverse, turn,
+			flip, reverse, turn, duplex,
 		)
 	}
 

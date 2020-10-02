@@ -8,4 +8,4 @@
 *.swo
 cmd/cli/cli
 tmp
-
+tags

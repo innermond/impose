@@ -176,7 +176,8 @@ func initFlagDuplex(flagset *flag.FlagSet) {
 	flagset.BoolVar(&flip, "flip", false, "flip grouped pages")
 	flagset.BoolVar(&reverse, "reverse", false, "reverse order of pages")
 	flagset.StringVar(&flow, "flow", "", "change natural order of pages")
-	flagset.IntVar(&weld, "weld", 1, "lenght of pages group")
+	flagset.IntVar(&weld, "weld", 1, "length of pages group")
+	flagset.BoolVar(&duplex, "duplex", false, "activate duplex")
 }
 
 func param() error {
@@ -211,6 +212,7 @@ func param() error {
 		clone = os.Args[2]
 		gridFlags["clone"] = false
 		same, spec = clivide(os.Args[3:], commonFlags())
+		initFlagDuplex(flagset)
 		repeat = true
 		// setup specifi flags then
 		// parse specific flag if any
@@ -225,7 +227,6 @@ func param() error {
 		flagset.Parse(spec)
 	default:
 		same, spec = clivide(os.Args[1:], commonFlags())
-		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 		if !isFlag(cmd) {
 			usage = usagefn("not defined")

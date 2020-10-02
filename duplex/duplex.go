@@ -13,7 +13,8 @@ func Reflow(in []int, weld, col, row int, reversed, flip bool) (out []int, err e
 	lenin := len(in)
 	len0 := lenin % peak
 	if len0 != 0 {
-		len0 = col - len0
+    // difference to fill a page
+		len0 = peak - len0
 	}
 
 padding:

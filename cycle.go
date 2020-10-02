@@ -8,11 +8,12 @@ import (
 )
 
 func (bb *Boxes) Rotator(turn float64) func(int) {
-	var isBack, isFace, stilBack, stilFace bool
+  bb.Small.Angle += turn
+	//var isBack, isFace, stilBack, stilFace bool
 	return func(i int) {
-		if turn != 0.0 && i >= bb.Col*bb.Row {
+		if turn != 0.0 /*&& i >= bb.Col*bb.Row*/ {
 			// is on a duplex page ? all 2th page is duplex
-			zero := int(math.Ceil(float64(i+1)/float64(bb.Col*bb.Row))) % 2
+			/*zero := int(math.Ceil(float64(i+1)/float64(bb.Col*bb.Row))) % 2
 
 			isBack = zero == 0
 			isFace = !isBack
@@ -25,7 +26,7 @@ func (bb *Boxes) Rotator(turn float64) func(int) {
 				stilBack = false
 				stilFace = true
 				bb.Small.Angle += turn
-			}
+			}*/
 		}
 	}
 }
@@ -33,7 +34,7 @@ func (bb *Boxes) Rotator(turn float64) func(int) {
 func (bb *Boxes) Adjuster(turn float64, creepx []int, multiplier float64) func(int) {
 	var isBack, isFace, stilBack, stilFace bool
 	return func(i int) {
-		if turn != 0.0 && i >= bb.Col*bb.Row {
+		if turn != 0.0 /*&& i >= bb.Col*bb.Row*/ {
 			// is on a duplex page ? all 2th page is duplex
 			zero := int(math.Ceil(float64(i+1)/float64(bb.Col*bb.Row))) % 2
 
@@ -78,12 +79,13 @@ grid:
 		for y := 0; y < bb.Row; y++ {
 			rowbk = creator.NewBlock(
 				bb.Big.Width,
-				bb.Big.Height,
+				bb.Small.Height,
 			)
 			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
 				if i >= bb.Num {
           bb.putRow(rowbk)
+					bb.DrawCropmark()
 					break grid
 				}
 				// check the need for a new page
@@ -127,9 +129,6 @@ func (bb *Boxes) putRow(rowbk *creator.Block) {
     for i := 0; i < bb.CloneX; i++ {
       var xk = float64(i)*float64(bb.Col)*bb.Small.Width 
       var yk = float64(j)*float64(bb.Row)*bb.Small.Height
-if i == 65 {
-log.Println(xk, yk)
-}
       rowbk.SetPos(xk, yk)
       bb.Creator.Draw(rowbk)
     }
@@ -139,7 +138,7 @@ log.Println(xk, yk)
 func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64) error {
 	var (
 		err   error
-		w, h  = bb.Small.Width, bb.Small.Height
+		//w, h  = bb.Small.Width, bb.Small.Height
 		angle = bb.Small.Angle
 		dt    = bb.DeltaPos
 
@@ -163,16 +162,19 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 		xposx += dt
 		bk.Clip(-1*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	case -90, 270:
-		xposx += w
+		//xposx += w
 		xposx += dt
 		bk.Clip(0, -dt, bk.Width(), bk.Height(), bb.Outline)
 	case 90, -270:
-		yposy += h
+		//yposy += h
 		xposx += dt
 		bk.Clip(0, dt, bk.Width(), bk.Height(), bb.Outline)
 	case 180, -180:
-		xposx += w
-		yposy += h
+		//xposx += w
+		//yposy += h
+		xposx += dt
+		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
+  default:
 		xposx += dt
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}

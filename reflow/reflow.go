@@ -27,7 +27,7 @@ func On(in []int, as []int) (out []int, err error) {
 
 	// only positive ints
 	for _, i := range in {
-		if i < 1 {
+		if i < 0 {
 			return nil, ErrPositiveInt
 		}
 	}

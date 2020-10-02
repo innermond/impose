@@ -3,8 +3,8 @@ package impose
 import (
 	"log"
 
-_	"github.com/innermond/impose/duplex"
-	"github.com/innermond/impose/reflow"
+  "github.com/innermond/impose/duplex"
+  "github.com/innermond/impose/reflow"
 )
 
 func (bb *Boxes) Impose(
@@ -13,6 +13,7 @@ func (bb *Boxes) Impose(
 	weld int,
 	flip, reverse bool,
 	turn float64,
+  is_duplex bool,
 ) chan int {
 	// proxy variables
 	var (
@@ -20,7 +21,17 @@ func (bb *Boxes) Impose(
 		np  = len(pxp)
 	)
 
-	if np%len(flow) != 0 {
+// TODO duplex command or flag
+  if is_duplex {
+    pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
+    if err != nil {
+      log.Fatal(err)
+    }
+  }
+
+	bb.Num = len(pxp)
+
+	if bb.Num%len(flow) != 0 {
 		log.Fatalf("%d is not divisible with %d", np, len(flow))
 	}
 	// booklet signature {last first second second-last}
@@ -32,12 +43,6 @@ func (bb *Boxes) Impose(
 		log.Fatal(err)
 	}
 
-// TODO duplex command or flag
-/*	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
-	if err != nil {
-		log.Fatal(err)
-	}
-*/
 	bb.Num = len(pxp)
 
 	adjuster := bb.Rotator(turn)

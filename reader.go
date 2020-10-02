@@ -26,9 +26,11 @@ func (r *PdfReader) AdjustMediaBox() error {
 	if r.pg == nil {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
+  // TODO involve BleedBox
 	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 	// TrimBox is the final page
 	tbox, err := r.pg.GetBox("TrimBox")
+  // no trimbox
 	if err != nil {
 		cbox, err := r.pg.GetBox("CropBox")
 		if err == nil {
