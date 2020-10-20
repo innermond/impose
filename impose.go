@@ -21,11 +21,15 @@ func (bb *Boxes) Impose(
 		np  = len(pxp)
 	)
 
-// TODO duplex command or flag
   if is_duplex {
     pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
     if err != nil {
       log.Fatal(err)
+    }
+  } else {
+    padd := len(pxp) % len(flow)
+    if padd != 0 {
+      pxp = append(pxp, make([]int, padd)...) 
     }
   }
 
@@ -51,7 +55,9 @@ func (bb *Boxes) Impose(
 		// cycle every page and draw it
 		bb.CycleAdjusted(pxp, counter, adjuster)
 		// put cropmarks for the last sheet
-		bb.DrawCropmark()
+		//if bb.cropPage == 0 {
+      //bb.DrawCropmark()
+    //}
 	}()
 
 	return counter

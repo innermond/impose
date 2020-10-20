@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+  "math"
 
 	"github.com/innermond/impose"
 	"github.com/innermond/pange"
@@ -96,11 +97,25 @@ func main() {
 	// assume all pages has the same dimensions as first one
 	page, err := pdf.GetPage(1)
 	fatal(err)
-	bbox, err := page.GetMediaBox()
+  bbox, err := page.GetMediaBox() 
 	fatal(err)
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
+	if verbosity > 0 {
+		log.Printf("width: %v height: %v\n", w/creator.PPMM, h/creator.PPMM)
+	}
+
+  bx, by := pdf.GetNaturalBleeds()
+  bx = math.Round(bx*100)/100
+  by = math.Round(by*100)/100
+  bx0 := math.Round(bleedx*100)/100
+  by0 := math.Round(bleedy*100)/100
+  if bx0 !=  bx || by0 != by {
+    bxmm := math.Round(bx/creator.PPMM*100)/100
+    bymm := math.Round(by/creator.PPMM*100)/100
+    log.Printf("sugested bleed x: %v sugested bleed y: %v\n", bxmm, bymm)
+  }
 	// cropmarks adds extra to dimensions
 	extw := offx + markw
 	exth := offy + markh
@@ -109,6 +124,10 @@ func main() {
 	clonex, cloney := 1, 1
 	clonex, cloney, err = parsex(clone)
 	fatal("clone: ", err)
+  if verbosity > 0 {
+    log.Printf("clonex %v, cloney %v", clonex, cloney)
+  }
+
 	if autopage {
 		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
 		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
@@ -117,6 +136,10 @@ func main() {
 			height = top + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
 	}
+
+  if verbosity > 0 {
+    log.Printf("page width %v, page height %v", width/creator.PPMM, height/creator.PPMM)
+  }
 
 	// create a sheet page
 	c := creator.New()
@@ -183,13 +206,14 @@ func main() {
 		log.Println("prepared boxes")
 	}
 
-	if showcropmark {
+  if cropmark >= 0 {
 		bb.CreateCropmark(
 			markw, markh,
 			extw, exth,
 			bleedx, bleedy,
 			bookletMode,
 			angled,
+      cropmark,
 		)
 	}
 
@@ -235,7 +259,7 @@ func main() {
 		}
 	}
 
-	err = c.Write(os.Stdout)
+  err = c.Write(os.Stdout)
 	fatal(err)
 
 	// profilng

@@ -38,7 +38,7 @@ var (
 	bleed, bleedx, bleedy  float64
 	offset, offx, offy     float64
 	marksize, markw, markh float64
-	showcropmark           bool
+	cropmark               uint
 	bookletMode            bool
 	creep                  float64
 	outline                bool
@@ -90,14 +90,17 @@ var (
 		"markh":    true,
 	}
 	viewFlags = map[string]bool{
-		"nocropmark": true,
+		"cropmark": true,
 		"outline":    true,
 	}
 	duplexFlags = map[string]bool{
+		"duplex":  true,
+	}
+	advancedFlags = map[string]bool{
 		"flip":    true,
 		"turn":    true,
 		"reverse": true,
-		"duplex":  true,
+    "weld":    true,
 	}
 	debugFlags = map[string]bool{
 		"mem": true,
@@ -151,7 +154,7 @@ func initMarkFlags(flagset *flag.FlagSet) {
 }
 
 func initViewFlags(flagset *flag.FlagSet) {
-	flagset.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
+	flagset.UintVar(&cropmark, "cropmark", 0, "which page will have cropmarks shown - 0 means no one")
 	flagset.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 }
 func initDebugFlags(flagset *flag.FlagSet) {
@@ -162,7 +165,7 @@ func initDebugFlags(flagset *flag.FlagSet) {
 
 func commonFlags() map[string]bool {
 	out := map[string]bool{}
-	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags, debugFlags}
+	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags, advancedFlags, debugFlags}
 	for _, ff := range fff {
 		for flagname, val := range ff {
 			out[flagname] = val
@@ -171,12 +174,15 @@ func commonFlags() map[string]bool {
 	return out
 }
 
-func initFlagDuplex(flagset *flag.FlagSet) {
+func initAdvancedFlags(flagset *flag.FlagSet) {
 	flagset.Float64Var(&turn, "turn", 0.0, "rotate page with specified angle")
 	flagset.BoolVar(&flip, "flip", false, "flip grouped pages")
 	flagset.BoolVar(&reverse, "reverse", false, "reverse order of pages")
 	flagset.StringVar(&flow, "flow", "", "change natural order of pages")
 	flagset.IntVar(&weld, "weld", 1, "length of pages group")
+}
+
+func initDuplexFlags(flagset *flag.FlagSet) {
 	flagset.BoolVar(&duplex, "duplex", false, "activate duplex")
 }
 
@@ -212,7 +218,6 @@ func param() error {
 		clone = os.Args[2]
 		gridFlags["clone"] = false
 		same, spec = clivide(os.Args[3:], commonFlags())
-		initFlagDuplex(flagset)
 		repeat = true
 		// setup specifi flags then
 		// parse specific flag if any
@@ -223,7 +228,6 @@ func param() error {
 		bookletMode = true
 		// specific flag
 		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
-		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 	default:
 		same, spec = clivide(os.Args[1:], commonFlags())
@@ -240,6 +244,8 @@ func param() error {
 	initMarkFlags(flagset)
 	initViewFlags(flagset)
 	initDebugFlags(flagset)
+  initDuplexFlags(flagset)
+  initAdvancedFlags(flagset)
 	// end common flags definition
 	flagset.Parse(same)
 	flagset.Usage = func() {
@@ -302,8 +308,6 @@ func param() error {
 			if creep > bleedx {
 				creep = bleedx
 			}
-		case "nocropmark":
-			showcropmark = false
 		}
 	})
 	// last edge is further inside mediabox by bleed amount

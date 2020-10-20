@@ -66,46 +66,44 @@ func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
 		maxOnSheet = bb.Col * bb.Row
 		xpos, ypos = bb.Big.Left, bb.Big.Top
 		w, h       = bb.Small.Width, bb.Small.Height
-		i          int
-		nextSheet  bool
+		isNextSheet  bool
 	)
 	// start imposition
 	bb.NewSheet()
 	var (
-		rowbk *creator.Block
+		gridbk *creator.Block
+		i          int // page counter
 	)
+
+  var gridCounter uint = 0
 grid:
 	for {
+    // new empty row
+    gridbk = creator.NewBlock(
+      bb.Big.Width,
+      bb.Big.Height,
+    )
+
 		for y := 0; y < bb.Row; y++ {
-			rowbk = creator.NewBlock(
-				bb.Big.Width,
-				bb.Small.Height,
-			)
 			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
-				if i >= bb.Num {
-          bb.putRow(rowbk)
-					bb.DrawCropmark()
-					break grid
-				}
 				// check the need for a new page
 				if i >= maxOnSheet {
-					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
+					isNextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
-				if nextSheet {
-					// put cropmarks on sheet
-					bb.DrawCropmark()
+				if isNextSheet {
 					// initialize position
           xpos = bb.Big.Left
 					ypos = bb.Big.Top
 					bb.NewSheet()
-					nextSheet = false
+					isNextSheet = false
 				}
+        // skip blank pages
 				if pxp[i] > 0 {
 					if adjuster != nil {
 						adjuster(i)
 					}
-					err = bb.BlockDrawPage(rowbk, pxp[i], xpos, ypos)
+					err = bb.BlockDrawPage(gridbk, pxp[i], xpos, ypos)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -114,23 +112,37 @@ grid:
 				i++
 				// signal page drawing
 				c <- i
-				xpos += float64(w)
+				xpos += w
+
+        // overflow num pages?
+				if i >= bb.Num {
+          gridCounter++
+          bb.putRow(gridbk)
+          if bb.cropPage == 0 || gridCounter == bb.cropPage {
+            bb.DrawCropmark()
+          }
+					break grid
+				}
 			}
-      bb.putRow(rowbk)
-			ypos += float64(h)
+      bb.putRow(gridbk)
+			ypos += h
 			xpos = bb.Big.Left
 		}
+    gridCounter++
+    if bb.cropPage == 0 || gridCounter == bb.cropPage {
+      bb.DrawCropmark()
+    }
 	}
 	close(c)
 }
 
-func (bb *Boxes) putRow(rowbk *creator.Block) {
+func (bb *Boxes) putRow(gridbk *creator.Block) {
   for j := 0; j < bb.CloneY; j++ {
     for i := 0; i < bb.CloneX; i++ {
       var xk = float64(i)*float64(bb.Col)*bb.Small.Width 
       var yk = float64(j)*float64(bb.Row)*bb.Small.Height
-      rowbk.SetPos(xk, yk)
-      bb.Creator.Draw(rowbk)
+      gridbk.SetPos(xk, yk)
+      bb.Creator.Draw(gridbk)
     }
   }
 }

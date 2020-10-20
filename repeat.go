@@ -13,7 +13,7 @@ func (bb *Boxes) Repeat(
 		// cycle every page and draw it
 		bb.CycleAdjusted(pxp, counter, adjuster)
 		// put cropmarks for the last sheet
-		bb.DrawCropmark()
+		//bb.DrawCropmark()
 	}()
 	return counter
 }

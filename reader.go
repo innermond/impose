@@ -12,6 +12,8 @@ type PdfReader struct {
 	*model.PdfReader
 	pg     *model.PdfPage
 	dx, dy float64
+  // natural bleeds
+  bx, by float64
 }
 
 func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
@@ -19,14 +21,13 @@ func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PdfReader{r, nil, dx, dy}, nil
+	return &PdfReader{r, nil, dx, dy, 0.0, 0.0}, nil
 }
 
 func (r *PdfReader) AdjustMediaBox() error {
 	if r.pg == nil {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
-  // TODO involve BleedBox
 	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 	// TrimBox is the final page
 	tbox, err := r.pg.GetBox("TrimBox")
@@ -42,7 +43,7 @@ func (r *PdfReader) AdjustMediaBox() error {
 			return nil
 		}
 	}
-	// MediaBox = TrimBox + bleed
+	// MediaBox = TrimBox + 2*bleed
 	mbox := &model.PdfRectangle{}
 	// expand with bleedx and bleedy
 	mbox.Llx = tbox.Llx - r.dx
@@ -56,6 +57,8 @@ func (r *PdfReader) AdjustMediaBox() error {
 		return err
 	}
 
+  r.bx, r.by = tbox.Llx - mediabox.Llx, tbox.Lly - mediabox.Lly
+
 	// do not exceed unadjusted real mediabox
 	// mediabox width smaller than adjusted mbox width
 	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
@@ -66,6 +69,10 @@ func (r *PdfReader) AdjustMediaBox() error {
 	// adjust
 	r.pg.MediaBox = mbox
 	return nil
+}
+
+func (r *PdfReader) GetNaturalBleeds() (float64, float64) {
+  return r.bx, r.by
 }
 
 func (r *PdfReader) GetPage(num int) (*model.PdfPage, error) {
