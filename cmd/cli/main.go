@@ -13,6 +13,7 @@ import (
 	"github.com/innermond/impose"
 	"github.com/innermond/pange"
 	"github.com/unidoc/unipdf/v3/creator"
+	"github.com/unidoc/unipdf/v3/model"
 )
 
 func main() {
@@ -97,13 +98,51 @@ func main() {
 	// assume all pages has the same dimensions as first one
 	page, err := pdf.GetPage(1)
 	fatal(err)
+
   bbox, err := page.GetMediaBox() 
 	fatal(err)
+
+  if len(mediabox) != 0 {
+    // force mediabox
+    mbox := &model.PdfRectangle{}
+    pp := mediabox
+    switch len(pp) {
+      case 1:
+        mbox.Llx = pp[0]*creator.PPMM
+        mbox.Lly = bbox.Lly
+        mbox.Urx = bbox.Urx
+        mbox.Ury = bbox.Ury
+      case 2:
+        mbox.Llx = pp[0]*creator.PPMM
+        mbox.Lly = pp[1]*creator.PPMM
+        mbox.Urx = bbox.Urx
+        mbox.Ury = bbox.Ury
+      case 3:
+        mbox.Llx = pp[0]*creator.PPMM
+        mbox.Lly = pp[1]*creator.PPMM
+        mbox.Urx = pp[2]*creator.PPMM
+        mbox.Ury = bbox.Ury
+      case 4:
+        mbox.Llx = pp[0]*creator.PPMM
+        mbox.Lly = pp[1]*creator.PPMM
+        mbox.Urx = pp[2]*creator.PPMM
+        mbox.Ury = pp[3]*creator.PPMM
+    }
+    pdf.ForceMediaBox(mbox)
+    err := pdf.AdjustMediaBox()
+    fatal(err)
+    bbox = mbox
+  }  
+
+	if verbosity > 0 {
+		log.Printf("mediabox: %v\n", bbox)
+	}
+
 	w := bbox.Urx - bbox.Llx
 	h := bbox.Ury - bbox.Lly
 
 	if verbosity > 0 {
-		log.Printf("width: %v height: %v\n", w/creator.PPMM, h/creator.PPMM)
+		log.Printf("small box width: %v; small box height height: %v\n", w/creator.PPMM, h/creator.PPMM)
 	}
 
   bx, by := pdf.GetNaturalBleeds()

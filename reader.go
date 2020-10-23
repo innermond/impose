@@ -14,6 +14,8 @@ type PdfReader struct {
 	dx, dy float64
   // natural bleeds
   bx, by float64
+
+  mbox *model.PdfRectangle 
 }
 
 func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
@@ -21,13 +23,19 @@ func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PdfReader{r, nil, dx, dy, 0.0, 0.0}, nil
+	return &PdfReader{r, nil, dx, dy, 0.0, 0.0, nil}, nil
+}
+
+func (r *PdfReader) ForceMediaBox(forcedbox *model.PdfRectangle) {
+  r.mbox = forcedbox
 }
 
 func (r *PdfReader) AdjustMediaBox() error {
 	if r.pg == nil {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
+
+  //TODO force mediabox from trim + bleed
 	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 	// TrimBox is the final page
 	tbox, err := r.pg.GetBox("TrimBox")
@@ -50,24 +58,28 @@ func (r *PdfReader) AdjustMediaBox() error {
 	mbox.Lly = tbox.Lly - r.dy
 	mbox.Urx = tbox.Urx + r.dx
 	mbox.Ury = tbox.Ury + r.dy
-
+  
+// use forced mediabox
+  if r.mbox != nil {
+    r.pg.MediaBox = r.mbox
+  }
 	mediabox, err := r.pg.GetMediaBox()
 	// what?? we have at least a cropbox or a trimbox but not a mediabox???
 	if err != nil {
 		return err
 	}
 
-  r.bx, r.by = tbox.Llx - mediabox.Llx, tbox.Lly - mediabox.Lly
-
-	// do not exceed unadjusted real mediabox
+	// if mediabox is smaller than trim + bleed computed enlarge
 	// mediabox width smaller than adjusted mbox width
 	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
 		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
 		// use mediabox
-		mbox = mediabox
+		mediabox = mbox
 	}
 	// adjust
-	r.pg.MediaBox = mbox
+	r.pg.MediaBox = mediabox
+  // bleed
+  r.bx, r.by = tbox.Llx - mediabox.Llx, tbox.Lly - mediabox.Lly
 	return nil
 }
 

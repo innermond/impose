@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+  "strconv"
 
 	"github.com/innermond/impose"
 	"github.com/unidoc/unipdf/v3/creator"
@@ -14,6 +15,8 @@ var (
 	fn     string
 	width  float64
 	height float64
+
+  mediabox ff
 
 	autopage    bool
 	autopadding float64
@@ -64,6 +67,7 @@ var (
 		"right":       true,
 		"autopage":    true,
 		"autopadding": true,
+    "mediabox":    true,
 	}
 	positionFlags = map[string]bool{
 		"center":  true,
@@ -122,6 +126,7 @@ func initGeometryFlags(flagset *flag.FlagSet) {
 	flagset.Float64Var(&right, "right", 0.0, "right margin")
 	flagset.BoolVar(&autopage, "autopage", false, "calculate proper dimensions for imposition sheet")
 	flagset.Float64Var(&autopadding, "autopadding", 2.0, "padding arround imposition")
+  flagset.Var(&mediabox, "mediabox", "the unnatural mediabox")
 }
 
 func initPositionFlags(flagset *flag.FlagSet) {
@@ -320,4 +325,22 @@ func param() error {
 	}
 
 	return err
+}
+
+
+// flag float64 array
+type ff []float64
+
+func (v *ff) Set(value string) error {
+  val, err := strconv.ParseFloat(value, 64)
+  if err != nil {
+    return err
+  }
+
+  *v = append(*v, val)
+  return nil
+}
+
+func (v *ff) String() string {
+  return "mediabox value"//fmt.Sprintf("%v", v)
 }
