@@ -41,13 +41,13 @@ type Boxes struct {
 	Col, Row, CloneX, CloneY int
 	Num                      int
 
-  BleedX, BleedY float64
+	BleedX, BleedY float64
 
 	Creator *creator.Creator
 	Reader  *PdfReader
 
 	Cropmark *creator.Block
-  cropPage uint
+	cropPage uint
 	Outline  bool
 
 	DeltaPos float64 // used to adjust / modify positions
@@ -164,7 +164,7 @@ func (bb *Boxes) CreateCropmark(
 	bleedx, bleedy float64,
 	bookletMode bool,
 	angled bool,
-  croppage uint,
+	croppage uint,
 ) {
 	cropbk := &CropMarkBlock{bb.Small.Width, bb.Small.Height,
 		bleedx, bleedy,
@@ -174,7 +174,7 @@ func (bb *Boxes) CreateCropmark(
 		bb,
 	}
 	bb.Cropmark = cropbk.Create(bookletMode, angled)
-  bb.cropPage = croppage
+	bb.cropPage = croppage
 }
 
 func (bb *Boxes) DrawCropmark() {

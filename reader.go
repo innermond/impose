@@ -10,12 +10,13 @@ import (
 
 type PdfReader struct {
 	*model.PdfReader
-	pg     *model.PdfPage
+	pg *model.PdfPage
+	// forced bleeds
 	dx, dy float64
-  // natural bleeds
-  bx, by float64
+	// natural bleeds
+	bx, by float64
 
-  mbox *model.PdfRectangle 
+	mbox *model.PdfRectangle
 }
 
 func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
@@ -27,7 +28,7 @@ func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
 }
 
 func (r *PdfReader) ForceMediaBox(forcedbox *model.PdfRectangle) {
-  r.mbox = forcedbox
+	r.mbox = forcedbox
 }
 
 func (r *PdfReader) AdjustMediaBox() error {
@@ -35,11 +36,11 @@ func (r *PdfReader) AdjustMediaBox() error {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
 
-  //TODO force mediabox from trim + bleed
+	//TODO force mediabox from trim + bleed
 	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 	// TrimBox is the final page
 	tbox, err := r.pg.GetBox("TrimBox")
-  // no trimbox
+	// no trimbox
 	if err != nil {
 		cbox, err := r.pg.GetBox("CropBox")
 		if err == nil {
@@ -58,11 +59,11 @@ func (r *PdfReader) AdjustMediaBox() error {
 	mbox.Lly = tbox.Lly - r.dy
 	mbox.Urx = tbox.Urx + r.dx
 	mbox.Ury = tbox.Ury + r.dy
-  
-// use forced mediabox
-  if r.mbox != nil {
-    r.pg.MediaBox = r.mbox
-  }
+
+	// use forced mediabox
+	if r.mbox != nil {
+		r.pg.MediaBox = r.mbox
+	}
 	mediabox, err := r.pg.GetMediaBox()
 	// what?? we have at least a cropbox or a trimbox but not a mediabox???
 	if err != nil {
@@ -78,13 +79,17 @@ func (r *PdfReader) AdjustMediaBox() error {
 	}
 	// adjust
 	r.pg.MediaBox = mediabox
-  // bleed
-  r.bx, r.by = tbox.Llx - mediabox.Llx, tbox.Lly - mediabox.Lly
+	// bleed
+	r.bx, r.by = tbox.Llx-mediabox.Llx, tbox.Lly-mediabox.Lly
 	return nil
 }
 
 func (r *PdfReader) GetNaturalBleeds() (float64, float64) {
-  return r.bx, r.by
+	return r.bx, r.by
+}
+
+func (r *PdfReader) GetBleeds() (float64, float64) {
+	return r.dx, r.dy
 }
 
 func (r *PdfReader) GetPage(num int) (*model.PdfPage, error) {

@@ -3,8 +3,8 @@ package impose
 import (
 	"log"
 
-  "github.com/innermond/impose/duplex"
-  "github.com/innermond/impose/reflow"
+	"github.com/innermond/impose/duplex"
+	"github.com/innermond/impose/reflow"
 )
 
 func (bb *Boxes) Impose(
@@ -13,7 +13,7 @@ func (bb *Boxes) Impose(
 	weld int,
 	flip, reverse bool,
 	turn float64,
-  is_duplex bool,
+	is_duplex bool,
 ) chan int {
 	// proxy variables
 	var (
@@ -21,17 +21,17 @@ func (bb *Boxes) Impose(
 		np  = len(pxp)
 	)
 
-  if is_duplex {
-    pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
-    if err != nil {
-      log.Fatal(err)
-    }
-  } else {
-    padd := len(pxp) % len(flow)
-    if padd != 0 {
-      pxp = append(pxp, make([]int, padd)...) 
-    }
-  }
+	if is_duplex {
+		pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		padd := len(pxp) % len(flow)
+		if padd != 0 {
+			pxp = append(pxp, make([]int, padd)...)
+		}
+	}
 
 	bb.Num = len(pxp)
 
@@ -56,8 +56,8 @@ func (bb *Boxes) Impose(
 		bb.CycleAdjusted(pxp, counter, adjuster)
 		// put cropmarks for the last sheet
 		//if bb.cropPage == 0 {
-      //bb.DrawCropmark()
-    //}
+		//bb.DrawCropmark()
+		//}
 	}()
 
 	return counter

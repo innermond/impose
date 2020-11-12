@@ -8,7 +8,7 @@ import (
 )
 
 func (bb *Boxes) Rotator(turn float64) func(int) {
-  bb.Small.Angle += turn
+	bb.Small.Angle += turn
 	//var isBack, isFace, stilBack, stilFace bool
 	return func(i int) {
 		if turn != 0.0 /*&& i >= bb.Col*bb.Row*/ {
@@ -60,50 +60,82 @@ func (bb *Boxes) Cycle(pxp []int, c chan int) {
 	bb.CycleAdjusted(pxp, c, nil)
 }
 
+type Side string
+
+const (
+	Inside Side = "Inside"
+	TL          = "TL"
+	TR          = "TR"
+	T           = "T"
+	BL          = "BL"
+	BR          = "BR"
+	B           = "B"
+	L           = "L"
+	R           = "R"
+)
+
 func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
 	var (
-		err        error
-		maxOnSheet = bb.Col * bb.Row
-		xpos, ypos = bb.Big.Left, bb.Big.Top
-		w, h       = bb.Small.Width, bb.Small.Height
-		isNextSheet  bool
+		err         error
+		maxOnSheet  = bb.Col * bb.Row
+		xpos, ypos  = bb.Big.Left, bb.Big.Top
+		w, h        = bb.Small.Width, bb.Small.Height
+		isNextSheet bool
 	)
 	// start imposition
 	bb.NewSheet()
 	var (
 		gridbk *creator.Block
-		i          int // page counter
+		i      int // page counter
 	)
 
-  var gridCounter uint = 0
+	var isWall Side = Inside
+	var gridCounter uint = 0
 grid:
 	for {
-    // new empty row
-    gridbk = creator.NewBlock(
-      bb.Big.Width,
-      bb.Big.Height,
-    )
-
 		for y := 0; y < bb.Row; y++ {
+			// new empty row
+			gridbk = creator.NewBlock(
+				bb.Big.Width,
+				bb.Big.Height,
+			)
 			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
+				isWall = Inside
+				if x == 0 && y == 0 {
+					isWall = TL
+				} else if y == 0 && x == bb.Col-1 {
+					isWall = TR
+				} else if x == bb.Col-1 && y == bb.Row-1 {
+					isWall = BR
+				} else if x == 0 && y == bb.Row-1 {
+					isWall = BL
+				} else if x == 0 {
+					isWall = L
+				} else if y == 0 {
+					isWall = T
+				} else if x == bb.Col-1 {
+					isWall = R
+				} else if y == bb.Row-1 {
+					isWall = B
+				}
 				// check the need for a new page
 				if i >= maxOnSheet {
 					isNextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
 				if isNextSheet {
 					// initialize position
-          xpos = bb.Big.Left
+					xpos = bb.Big.Left
 					ypos = bb.Big.Top
 					bb.NewSheet()
 					isNextSheet = false
 				}
-        // skip blank pages
+				// skip blank pages
 				if pxp[i] > 0 {
 					if adjuster != nil {
 						adjuster(i)
 					}
-					err = bb.BlockDrawPage(gridbk, pxp[i], xpos, ypos)
+					err = bb.BlockDrawPage(gridbk, pxp[i], xpos, ypos, isWall)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -114,42 +146,42 @@ grid:
 				c <- i
 				xpos += w
 
-        // overflow num pages?
+				// overflow num pages?
 				if i >= bb.Num {
-          gridCounter++
-          bb.putRow(gridbk)
-          if bb.cropPage == 0 || gridCounter == bb.cropPage {
-            bb.DrawCropmark()
-          }
+					gridCounter++
+					bb.putRow(gridbk)
+					if bb.cropPage == 0 || gridCounter == bb.cropPage {
+						bb.DrawCropmark()
+					}
 					break grid
 				}
 			}
-      bb.putRow(gridbk)
+			bb.putRow(gridbk)
 			ypos += h
 			xpos = bb.Big.Left
 		}
-    gridCounter++
-    if bb.cropPage == 0 || gridCounter == bb.cropPage {
-      bb.DrawCropmark()
-    }
+		gridCounter++
+		if bb.cropPage == 0 || gridCounter == bb.cropPage {
+			bb.DrawCropmark()
+		}
 	}
 	close(c)
 }
 
 func (bb *Boxes) putRow(gridbk *creator.Block) {
-  for j := 0; j < bb.CloneY; j++ {
-    for i := 0; i < bb.CloneX; i++ {
-      var xk = float64(i)*float64(bb.Col)*bb.Small.Width 
-      var yk = float64(j)*float64(bb.Row)*bb.Small.Height
-      gridbk.SetPos(xk, yk)
-      bb.Creator.Draw(gridbk)
-    }
-  }
+	for j := 0; j < bb.CloneY; j++ {
+		for i := 0; i < bb.CloneX; i++ {
+			var xk = float64(i) * float64(bb.Col) * bb.Small.Width
+			var yk = float64(j) * float64(bb.Row) * bb.Small.Height
+			gridbk.SetPos(xk, yk)
+			bb.Creator.Draw(gridbk)
+		}
+	}
 }
 
-func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64) error {
+func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64, isWall Side) error {
 	var (
-		err   error
+		err error
 		//w, h  = bb.Small.Width, bb.Small.Height
 		angle = bb.Small.Angle
 		dt    = bb.DeltaPos
@@ -165,30 +197,113 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	// lay down imported page
 	xposx, yposy := xpos, ypos
 	bk.SetAngle(angle)
+	log.Printf("page %d is %v", num, isWall)
 	// bk is top left corner oriented by framework choice
 	// Clip is bottom right oriented by pdf specification
 	// angle is counter clock wise, so -90 is clock wise
 	// do the math!!!
+	var (
+		w                = bk.Width()
+		h                = bk.Height()
+		dx, dy           = bb.Reader.GetBleeds()
+		extended_outside = 2 * creator.PPMM
+	)
+
+	switch isWall {
+	case TL:
+		if dx == 0 {
+			//dx = extended_outside
+		}
+		if dy == 0 {
+			//dy = extended_outside
+		}
+		// center clip
+		x := 0.5 * dx
+		y := 0.5 * dy
+		// extend to outside left
+		if dx == 0 {
+			dx = extended_outside
+		}
+		w += dx
+		x -= dx
+		dx = x
+		// extend to outside top
+		if dy == 0 {
+			dy = extended_outside
+		}
+		h += dy
+		y += dy
+		dy = y
+	case TR:
+		if dx == 0 {
+			dx = extended_outside
+		}
+		if dy == 0 {
+			dy = extended_outside
+		}
+		h -= dy
+		w -= dx
+		dx = 0
+		dy *= 2
+	case T:
+		if dy == 0 {
+			dy = extended_outside
+		}
+		h -= dy
+		w -= 2 * dx
+		dx = 0
+		dy *= 2
+	case L:
+		if dx == 0 {
+			dx = -1 * extended_outside
+		}
+		dy = 0
+		w += dx
+		//xposx -= dx
+	case R:
+		if dx == 0 {
+			dx = extended_outside
+		}
+		dy = 0
+		w += dx
+	case BL:
+		if dx == 0 {
+			dx = -1 * extended_outside
+		}
+		h += dy
+		w += dx
+		//xposx -= dx
+		//yposy -= dy
+	case BR:
+		if dx == 0 {
+			dx = extended_outside
+		}
+		h += dy
+		w += dx
+		//yposy -= dy
+	case B:
+		dx = 0
+		h += dy
+		//yposy -= dy
+	case Inside:
+		h -= 2 * dy
+		w -= 2 * dx
+		dx = 0
+		dy = 0
+	}
+
+	xposx += dt
 	switch angle {
 	case 0.0:
-		xposx += dt
-		bk.Clip(-1*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(dx, dy, w, h, bb.Outline)
 	case -90, 270:
-		//xposx += w
-		xposx += dt
-		bk.Clip(0, -dt, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(0, -dt, w, h, bb.Outline)
 	case 90, -270:
-		//yposy += h
-		xposx += dt
-		bk.Clip(0, dt, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(0, dt, w, h, bb.Outline)
 	case 180, -180:
-		//xposx += w
-		//yposy += h
-		xposx += dt
-		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
-  default:
-		xposx += dt
-		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(dt, 0, w, h, bb.Outline)
+	default:
+		bk.Clip(dt, 0, w, h, bb.Outline)
 	}
 	// layout page
 	bk.SetPos(xposx, yposy)
