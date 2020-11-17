@@ -72,8 +72,8 @@ func (r *PdfReader) AdjustMediaBox() error {
 
 	// if mediabox is smaller than trim + bleed computed enlarge
 	// mediabox width smaller than adjusted mbox width
-	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
-		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
+	if mediabox.Urx-mediabox.Llx <= mbox.Urx-mbox.Llx ||
+		mediabox.Ury-mediabox.Lly <= mbox.Ury-mbox.Lly {
 		// use mediabox
 		mediabox = mbox
 	}

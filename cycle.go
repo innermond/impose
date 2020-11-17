@@ -197,7 +197,6 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	// lay down imported page
 	xposx, yposy := xpos, ypos
 	bk.SetAngle(angle)
-	log.Printf("page %d is %v", num, isWall)
 	// bk is top left corner oriented by framework choice
 	// Clip is bottom right oriented by pdf specification
 	// angle is counter clock wise, so -90 is clock wise
@@ -208,88 +207,68 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 		dx, dy           = bb.Reader.GetBleeds()
 		extended_outside = 2 * creator.PPMM
 	)
+	log.Printf("page %d is %v , bleed %v %v", num, isWall, dx, dy)
 
 	switch isWall {
 	case TL:
-		if dx == 0 {
-			//dx = extended_outside
-		}
-		if dy == 0 {
-			//dy = extended_outside
-		}
-		// center clip
-		x := 0.5 * dx
-		y := 0.5 * dy
 		// extend to outside left
 		if dx == 0 {
-			dx = extended_outside
+			// pull left
+			dx = -1 * extended_outside
+			// grow by dx
+			w += -1 * dx
 		}
-		w += dx
-		x -= dx
-		dx = x
 		// extend to outside top
 		if dy == 0 {
-			dy = extended_outside
+			h += extended_outside
 		}
-		h += dy
-		y += dy
-		dy = y
 	case TR:
 		if dx == 0 {
-			dx = extended_outside
+			w += extended_outside
 		}
 		if dy == 0 {
-			dy = extended_outside
+			h += extended_outside
 		}
-		h -= dy
-		w -= dx
-		dx = 0
-		dy *= 2
 	case T:
 		if dy == 0 {
-			dy = extended_outside
+			h += extended_outside
 		}
-		h -= dy
-		w -= 2 * dx
-		dx = 0
-		dy *= 2
 	case L:
 		if dx == 0 {
 			dx = -1 * extended_outside
+			w += -1 * dx
 		}
-		dy = 0
-		w += dx
-		//xposx -= dx
 	case R:
 		if dx == 0 {
-			dx = extended_outside
+			w += extended_outside
 		}
-		dy = 0
-		w += dx
 	case BL:
 		if dx == 0 {
+			// pull left
 			dx = -1 * extended_outside
+			// grow by dx
+			w += -1 * dx
 		}
-		h += dy
-		w += dx
-		//xposx -= dx
-		//yposy -= dy
+		if dy == 0 {
+			// pull down
+			dy = -1 * extended_outside
+			// grow by dy
+			h += extended_outside
+		}
 	case BR:
 		if dx == 0 {
-			dx = extended_outside
+			w += extended_outside
 		}
-		h += dy
-		w += dx
-		//yposy -= dy
+		if dy == 0 {
+			dy = -1 * extended_outside
+			h += extended_outside
+		}
 	case B:
-		dx = 0
-		h += dy
-		//yposy -= dy
+		if dy == 0 {
+			dy = -1 * extended_outside
+			h += extended_outside
+		}
 	case Inside:
-		h -= 2 * dy
-		w -= 2 * dx
-		dx = 0
-		dy = 0
 	}
 
 	xposx += dt

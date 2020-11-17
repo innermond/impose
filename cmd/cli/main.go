@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"time"
-  "math"
 
 	"github.com/innermond/impose"
 	"github.com/innermond/pange"
@@ -99,40 +99,40 @@ func main() {
 	page, err := pdf.GetPage(1)
 	fatal(err)
 
-  bbox, err := page.GetMediaBox() 
+	bbox, err := page.GetMediaBox()
 	fatal(err)
 
-  if len(mediabox) != 0 {
-    // force mediabox
-    mbox := &model.PdfRectangle{}
-    pp := mediabox
-    switch len(pp) {
-      case 1:
-        mbox.Llx = pp[0]*creator.PPMM
-        mbox.Lly = bbox.Lly
-        mbox.Urx = bbox.Urx
-        mbox.Ury = bbox.Ury
-      case 2:
-        mbox.Llx = pp[0]*creator.PPMM
-        mbox.Lly = pp[1]*creator.PPMM
-        mbox.Urx = bbox.Urx
-        mbox.Ury = bbox.Ury
-      case 3:
-        mbox.Llx = pp[0]*creator.PPMM
-        mbox.Lly = pp[1]*creator.PPMM
-        mbox.Urx = pp[2]*creator.PPMM
-        mbox.Ury = bbox.Ury
-      case 4:
-        mbox.Llx = pp[0]*creator.PPMM
-        mbox.Lly = pp[1]*creator.PPMM
-        mbox.Urx = pp[2]*creator.PPMM
-        mbox.Ury = pp[3]*creator.PPMM
-    }
-    pdf.ForceMediaBox(mbox)
-    err := pdf.AdjustMediaBox()
-    fatal(err)
-    bbox = mbox
-  }  
+	if len(mediabox) != 0 {
+		// force mediabox
+		mbox := &model.PdfRectangle{}
+		pp := mediabox
+		switch len(pp) {
+		case 1:
+			mbox.Llx = pp[0] * creator.PPMM
+			mbox.Lly = bbox.Lly
+			mbox.Urx = bbox.Urx
+			mbox.Ury = bbox.Ury
+		case 2:
+			mbox.Llx = pp[0] * creator.PPMM
+			mbox.Lly = pp[1] * creator.PPMM
+			mbox.Urx = bbox.Urx
+			mbox.Ury = bbox.Ury
+		case 3:
+			mbox.Llx = pp[0] * creator.PPMM
+			mbox.Lly = pp[1] * creator.PPMM
+			mbox.Urx = pp[2] * creator.PPMM
+			mbox.Ury = bbox.Ury
+		case 4:
+			mbox.Llx = pp[0] * creator.PPMM
+			mbox.Lly = pp[1] * creator.PPMM
+			mbox.Urx = pp[2] * creator.PPMM
+			mbox.Ury = pp[3] * creator.PPMM
+		}
+		pdf.ForceMediaBox(mbox)
+		err := pdf.AdjustMediaBox()
+		fatal(err)
+		bbox = mbox
+	}
 
 	if verbosity > 0 {
 		log.Printf("mediabox: %v\n", bbox)
@@ -145,16 +145,16 @@ func main() {
 		log.Printf("small box width: %v; small box height height: %v\n", w/creator.PPMM, h/creator.PPMM)
 	}
 
-  bx, by := pdf.GetNaturalBleeds()
-  bx = math.Round(bx*100)/100
-  by = math.Round(by*100)/100
-  bx0 := math.Round(bleedx*100)/100
-  by0 := math.Round(bleedy*100)/100
-  if bx0 !=  bx || by0 != by {
-    bxmm := math.Round(bx/creator.PPMM*100)/100
-    bymm := math.Round(by/creator.PPMM*100)/100
-    log.Printf("sugested bleed x: %v sugested bleed y: %v\n", bxmm, bymm)
-  }
+	bx, by := pdf.GetNaturalBleeds()
+	bx = math.Round(bx*100) / 100
+	by = math.Round(by*100) / 100
+	bx0 := math.Round(bleedx*100) / 100
+	by0 := math.Round(bleedy*100) / 100
+	if bx0 != bx || by0 != by {
+		bxmm := math.Round(bx/creator.PPMM*100) / 100
+		bymm := math.Round(by/creator.PPMM*100) / 100
+		log.Printf("sugested bleed x: %v sugested bleed y: %v\n", bxmm, bymm)
+	}
 	// cropmarks adds extra to dimensions
 	extw := offx + markw
 	exth := offy + markh
@@ -163,9 +163,9 @@ func main() {
 	clonex, cloney := 1, 1
 	clonex, cloney, err = parsex(clone)
 	fatal("clone: ", err)
-  if verbosity > 0 {
-    log.Printf("clonex %v, cloney %v", clonex, cloney)
-  }
+	if verbosity > 0 {
+		log.Printf("clonex %v, cloney %v", clonex, cloney)
+	}
 
 	if autopage {
 		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
@@ -176,9 +176,9 @@ func main() {
 		}
 	}
 
-  if verbosity > 0 {
-    log.Printf("page width %v, page height %v", width/creator.PPMM, height/creator.PPMM)
-  }
+	if verbosity > 0 {
+		log.Printf("page width %v, page height %v", width/creator.PPMM, height/creator.PPMM)
+	}
 
 	// create a sheet page
 	c := creator.New()
@@ -213,6 +213,7 @@ func main() {
 	angled := false
 	if beSwitched {
 		bb.Small.Switch()
+		h, w = bb.Small.Height, bb.Small.Width
 		angled = true
 	}
 	// centering by changing margins
@@ -231,7 +232,6 @@ func main() {
 	// start to lay down pages
 	top, right, bottom, left = bb.Big.Top, bb.Big.Right, bb.Big.Bottom, bb.Big.Left
 	col, row = bb.Col, bb.Row
-	h, w = bb.Small.Height, bb.Small.Width
 
 	// check if media is enough
 	if !bb.EnoughWidth() {
@@ -245,14 +245,14 @@ func main() {
 		log.Println("prepared boxes")
 	}
 
-  if cropmark >= 0 {
+	if cropmark >= 0 {
 		bb.CreateCropmark(
 			markw, markh,
 			extw, exth,
 			bleedx, bleedy,
 			bookletMode,
 			angled,
-      cropmark,
+			cropmark,
 		)
 	}
 
@@ -298,7 +298,7 @@ func main() {
 		}
 	}
 
-  err = c.Write(os.Stdout)
+	err = c.Write(os.Stdout)
 	fatal(err)
 
 	// profilng
