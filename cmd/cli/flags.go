@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-  "strconv"
+	"strconv"
 
 	"github.com/innermond/impose"
 	"github.com/unidoc/unipdf/v3/creator"
@@ -16,7 +16,7 @@ var (
 	width  float64
 	height float64
 
-  mediabox ff
+	mediabox ff
 
 	autopage    bool
 	autopadding float64
@@ -67,7 +67,7 @@ var (
 		"right":       true,
 		"autopage":    true,
 		"autopadding": true,
-    "mediabox":    true,
+		"mediabox":    true,
 	}
 	positionFlags = map[string]bool{
 		"center":  true,
@@ -95,16 +95,16 @@ var (
 	}
 	viewFlags = map[string]bool{
 		"cropmark": true,
-		"outline":    true,
+		"outline":  true,
 	}
 	duplexFlags = map[string]bool{
-		"duplex":  true,
+		"duplex": true,
 	}
 	advancedFlags = map[string]bool{
 		"flip":    true,
 		"turn":    true,
 		"reverse": true,
-    "weld":    true,
+		"weld":    true,
 	}
 	debugFlags = map[string]bool{
 		"mem": true,
@@ -126,7 +126,7 @@ func initGeometryFlags(flagset *flag.FlagSet) {
 	flagset.Float64Var(&right, "right", 0.0, "right margin")
 	flagset.BoolVar(&autopage, "autopage", false, "calculate proper dimensions for imposition sheet")
 	flagset.Float64Var(&autopadding, "autopadding", 2.0, "padding arround imposition")
-  flagset.Var(&mediabox, "mediabox", "the unnatural mediabox")
+	flagset.Var(&mediabox, "mediabox", "the unnatural mediabox")
 }
 
 func initPositionFlags(flagset *flag.FlagSet) {
@@ -249,8 +249,8 @@ func param() error {
 	initMarkFlags(flagset)
 	initViewFlags(flagset)
 	initDebugFlags(flagset)
-  initDuplexFlags(flagset)
-  initAdvancedFlags(flagset)
+	initDuplexFlags(flagset)
+	initAdvancedFlags(flagset)
 	// end common flags definition
 	flagset.Parse(same)
 	flagset.Usage = func() {
@@ -258,8 +258,7 @@ func param() error {
 	repeat every requested page on imposition sheet in respect to grid
   -booklet command
   	booklet impose using a flow 4-1 2-3 dedicated for booklet
-	it has its own flag -creep
-`)
+	it has its own flag -creep `)
 		flagset.PrintDefaults()
 	}
 
@@ -327,20 +326,19 @@ func param() error {
 	return err
 }
 
-
 // flag float64 array
 type ff []float64
 
 func (v *ff) Set(value string) error {
-  val, err := strconv.ParseFloat(value, 64)
-  if err != nil {
-    return err
-  }
+	val, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return err
+	}
 
-  *v = append(*v, val)
-  return nil
+	*v = append(*v, val)
+	return nil
 }
 
 func (v *ff) String() string {
-  return "mediabox value"//fmt.Sprintf("%v", v)
+	return "mediabox value" //fmt.Sprintf("%v", v)
 }

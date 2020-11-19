@@ -129,9 +129,8 @@ func main() {
 			mbox.Ury = pp[3] * creator.PPMM
 		}
 		pdf.ForceMediaBox(mbox)
-		err := pdf.AdjustMediaBox()
+		bbox, err = pdf.AdjustMediaBox()
 		fatal(err)
-		bbox = mbox
 	}
 
 	if verbosity > 0 {
@@ -168,11 +167,11 @@ func main() {
 	}
 
 	if autopage {
-		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
-		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
+		width = left + float64(clonex)*float64(col)*(w+2*bleedx) + right + 2*extw + 2*autopadding
+		height = top + float64(cloney)*float64(row)*(h+2*bleedy) + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = left + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
-			height = top + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
+			width = left + float64(clonex)*float64(col)*(h+2*bleedy) + right + 2*extw + 2*autopadding
+			height = top + float64(cloney)*float64(row)*(w+2*bleedx) + bottom + 2*exth + 2*autopadding
 		}
 	}
 
@@ -208,6 +207,8 @@ func main() {
 		Cropmark: nil,
 		Outline:  outline,
 		DeltaPos: 0.0,
+		BleedX:   bleedx,
+		BleedY:   bleedy,
 	}
 
 	angled := false

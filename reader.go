@@ -31,11 +31,14 @@ func (r *PdfReader) ForceMediaBox(forcedbox *model.PdfRectangle) {
 	r.mbox = forcedbox
 }
 
-func (r *PdfReader) AdjustMediaBox() error {
+func (r *PdfReader) AdjustMediaBox() (*model.PdfRectangle, error) {
 	if r.pg == nil {
-		return errors.New("No page. Need to call GetPage(num) before")
+		return nil, errors.New("No page. Need to call GetPage(num) before")
 	}
 
+	if r.mbox != nil {
+		r.pg.TrimBox = r.mbox
+	}
 	//TODO force mediabox from trim + bleed
 	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 	// TrimBox is the final page
@@ -49,9 +52,10 @@ func (r *PdfReader) AdjustMediaBox() error {
 		} else {
 			// no trimbox or cropbox
 			// only mediabox so dont adjust
-			return nil
+			return r.pg.GetMediaBox()
 		}
 	}
+
 	// MediaBox = TrimBox + 2*bleed
 	mbox := &model.PdfRectangle{}
 	// expand with bleedx and bleedy
@@ -59,29 +63,26 @@ func (r *PdfReader) AdjustMediaBox() error {
 	mbox.Lly = tbox.Lly - r.dy
 	mbox.Urx = tbox.Urx + r.dx
 	mbox.Ury = tbox.Ury + r.dy
+	r.pg.MediaBox = mbox
 
-	// use forced mediabox
-	if r.mbox != nil {
-		r.pg.MediaBox = r.mbox
-	}
 	mediabox, err := r.pg.GetMediaBox()
 	// what?? we have at least a cropbox or a trimbox but not a mediabox???
 	if err != nil {
-		return err
+		return nil, err
 	}
+	// bleed
+	r.bx, r.by = tbox.Llx-mediabox.Llx, tbox.Lly-mediabox.Lly
 
 	// if mediabox is smaller than trim + bleed computed enlarge
 	// mediabox width smaller than adjusted mbox width
-	if mediabox.Urx-mediabox.Llx <= mbox.Urx-mbox.Llx ||
+	/*if mediabox.Urx-mediabox.Llx <= mbox.Urx-mbox.Llx ||
 		mediabox.Ury-mediabox.Lly <= mbox.Ury-mbox.Lly {
 		// use mediabox
 		mediabox = mbox
-	}
+	}*/
 	// adjust
-	r.pg.MediaBox = mediabox
-	// bleed
-	r.bx, r.by = tbox.Llx-mediabox.Llx, tbox.Lly-mediabox.Lly
-	return nil
+	//r.pg.MediaBox = mediabox
+	return mbox, nil
 }
 
 func (r *PdfReader) GetNaturalBleeds() (float64, float64) {
@@ -98,7 +99,7 @@ func (r *PdfReader) GetPage(num int) (*model.PdfPage, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = r.AdjustMediaBox()
+	_, err = r.AdjustMediaBox()
 	if err != nil {
 		return nil, err
 	}

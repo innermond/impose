@@ -82,6 +82,7 @@ func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
 		w, h        = bb.Small.Width, bb.Small.Height
 		isNextSheet bool
 	)
+	log.Println(bb.BleedX / creator.PPMM)
 	// start imposition
 	bb.NewSheet()
 	var (
@@ -144,7 +145,7 @@ grid:
 				i++
 				// signal page drawing
 				c <- i
-				xpos += w
+				xpos += (w + 2*bb.BleedX)
 
 				// overflow num pages?
 				if i >= bb.Num {
@@ -157,7 +158,7 @@ grid:
 				}
 			}
 			bb.putRow(gridbk)
-			ypos += h
+			ypos += (h + 2*bb.BleedY)
 			xpos = bb.Big.Left
 		}
 		gridCounter++
@@ -171,8 +172,8 @@ grid:
 func (bb *Boxes) putRow(gridbk *creator.Block) {
 	for j := 0; j < bb.CloneY; j++ {
 		for i := 0; i < bb.CloneX; i++ {
-			var xk = float64(i) * float64(bb.Col) * bb.Small.Width
-			var yk = float64(j) * float64(bb.Row) * bb.Small.Height
+			var xk = float64(i) * float64(bb.Col) * (bb.Small.Width + 2*bb.BleedX)
+			var yk = float64(j) * float64(bb.Row) * (bb.Small.Height + 2*bb.BleedY)
 			gridbk.SetPos(xk, yk)
 			bb.Creator.Draw(gridbk)
 		}
@@ -207,68 +208,115 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 		dx, dy           = bb.Reader.GetBleeds()
 		extended_outside = 2 * creator.PPMM
 	)
-	log.Printf("page %d is %v , bleed %v %v", num, isWall, dx, dy)
+	bx, by := bb.Reader.GetNaturalBleeds()
+	log.Printf("page %d is %v , bleed %v %v, natural bleed %v %v", num, isWall, dx/creator.PPMM, dy/creator.PPMM, bx/creator.PPMM, by/creator.PPMM)
 
 	switch isWall {
 	case TL:
 		// extend to outside left
 		if dx == 0 {
-			// pull left
-			dx = -1 * extended_outside
 			// grow by dx
-			w += -1 * dx
+			w += extended_outside
+			// pull left
+			dx = -extended_outside
+		} else {
+			w += 2 * dx
+			dx = -dx
 		}
 		// extend to outside top
 		if dy == 0 {
 			h += extended_outside
+		} else {
+			h += 2 * dy
+			dy = -dy
 		}
 	case TR:
 		if dx == 0 {
 			w += extended_outside
+		} else {
+			w += 2 * dx
+			dx = -dx
 		}
 		if dy == 0 {
 			h += extended_outside
+		} else {
+			h += 2 * dy
+			dy = -dy
 		}
 	case T:
 		if dy == 0 {
 			h += extended_outside
+		} else {
+			h += 2 * dy
+			dy = -dy
 		}
+		w += 2 * dx
+		dx = -dx
 	case L:
 		if dx == 0 {
-			dx = -1 * extended_outside
-			w += -1 * dx
+			// grow by dx
+			w += extended_outside
+			// pull left
+			dx = -extended_outside
+		} else {
+			w += 2 * dx
+			dx = -dx
 		}
+		h += 2 * dy
+		dy = -dy
 	case R:
 		if dx == 0 {
 			w += extended_outside
+		} else {
+			w += 2 * dx
+			dx = -dx
 		}
+		h += 2 * dy
+		dy = -dy
 	case BL:
 		if dx == 0 {
-			// pull left
-			dx = -1 * extended_outside
-			// grow by dx
-			w += -1 * dx
+			w += extended_outside
+			dx = -extended_outside
+		} else {
+			w += 2 * dx
+			dx = -dx
 		}
 		if dy == 0 {
-			// pull down
-			dy = -1 * extended_outside
-			// grow by dy
 			h += extended_outside
+			dy = -extended_outside
+		} else {
+			h += 2 * dy
+			dy = -dy
 		}
 	case BR:
 		if dx == 0 {
 			w += extended_outside
+		} else {
+			w += 2 * dx
+			dx = -dx
 		}
 		if dy == 0 {
-			dy = -1 * extended_outside
 			h += extended_outside
+			dy = -extended_outside
+		} else {
+			h += 2 * dy
+			dy = -dy
 		}
 	case B:
 		if dy == 0 {
-			dy = -1 * extended_outside
 			h += extended_outside
+			dy = -extended_outside
+		} else {
+			h += 2 * dy
+			dy = -dy
 		}
+		w += 2 * dx
+		dx = -dx
 	case Inside:
+		w += 2 * dx
+		dx = -dx
+		h += 2 * dy
+		dy = -dy
 	}
 
 	xposx += dt
@@ -291,7 +339,7 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	return err
 }
 
-func (bb *Boxes) DrawPage(num int, xpos, ypos float64) error {
+func (bb *Boxes) _DrawPage(num int, xpos, ypos float64) error {
 	var (
 		err   error
 		w, h  = bb.Small.Width, bb.Small.Height
