@@ -82,7 +82,6 @@ func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
 		w, h        = bb.Small.Width, bb.Small.Height
 		isNextSheet bool
 	)
-	log.Println(bb.BleedX / creator.PPMM)
 	// start imposition
 	bb.NewSheet()
 	var (
@@ -208,8 +207,9 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 		dx, dy           = bb.Reader.GetBleeds()
 		extended_outside = 2 * creator.PPMM
 	)
-	bx, by := bb.Reader.GetNaturalBleeds()
-	log.Printf("page %d is %v , bleed %v %v, natural bleed %v %v", num, isWall, dx/creator.PPMM, dy/creator.PPMM, bx/creator.PPMM, by/creator.PPMM)
+	w -= 2 * dx
+	h -= 2 * dy
+	log.Printf("page %d is %v , bleed %v %v", num, isWall, dx/creator.PPMM, dy/creator.PPMM)
 
 	switch isWall {
 	case TL:
@@ -228,7 +228,7 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 			h += extended_outside
 		} else {
 			h += 2 * dy
-			dy = -dy
+			//dy = -dy
 		}
 	case TR:
 		if dx == 0 {
@@ -241,14 +241,14 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 			h += extended_outside
 		} else {
 			h += 2 * dy
-			dy = -dy
+			//dy = -dy
 		}
 	case T:
 		if dy == 0 {
 			h += extended_outside
 		} else {
 			h += 2 * dy
-			dy = -dy
+			//dy = -dy
 		}
 		w += 2 * dx
 		dx = -dx

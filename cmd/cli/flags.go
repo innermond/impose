@@ -16,7 +16,7 @@ var (
 	width  float64
 	height float64
 
-	mediabox ff
+	trimbox ff
 
 	autopage    bool
 	autopadding float64
@@ -39,6 +39,7 @@ var (
 	weld                   int
 	angle                  float64
 	bleed, bleedx, bleedy  float64
+	useNaturalBleed        bool
 	offset, offx, offy     float64
 	marksize, markw, markh float64
 	cropmark               uint
@@ -67,7 +68,7 @@ var (
 		"right":       true,
 		"autopage":    true,
 		"autopadding": true,
-		"mediabox":    true,
+		"trimbox":     true,
 	}
 	positionFlags = map[string]bool{
 		"center":  true,
@@ -83,15 +84,16 @@ var (
 		"duplex": true,
 	}
 	markFlags = map[string]bool{
-		"offset":   true,
-		"offx":     true,
-		"offy":     true,
-		"bleed":    true,
-		"bleedy":   true,
-		"bleedx":   true,
-		"marksize": true,
-		"markw":    true,
-		"markh":    true,
+		"offset":        true,
+		"offx":          true,
+		"offy":          true,
+		"bleed":         true,
+		"bleedy":        true,
+		"bleedx":        true,
+		"natural_bleed": true,
+		"marksize":      true,
+		"markw":         true,
+		"markh":         true,
 	}
 	viewFlags = map[string]bool{
 		"cropmark": true,
@@ -126,7 +128,7 @@ func initGeometryFlags(flagset *flag.FlagSet) {
 	flagset.Float64Var(&right, "right", 0.0, "right margin")
 	flagset.BoolVar(&autopage, "autopage", false, "calculate proper dimensions for imposition sheet")
 	flagset.Float64Var(&autopadding, "autopadding", 2.0, "padding arround imposition")
-	flagset.Var(&mediabox, "mediabox", "the unnatural mediabox")
+	flagset.Var(&trimbox, "trimbox", "the unnatural trimbox")
 }
 
 func initPositionFlags(flagset *flag.FlagSet) {
@@ -153,6 +155,7 @@ func initMarkFlags(flagset *flag.FlagSet) {
 	flagset.Float64Var(&bleed, "bleed", 0.0, "distance cut mark has been given in respect to the last edge")
 	flagset.Float64Var(&bleedx, "bleedx", 0.0, "axe x distance cut mark has been given in respect to the last edge")
 	flagset.Float64Var(&bleedy, "bleedy", 0.0, "axe y distance cut mark has been given in respect to the last edge")
+	flagset.BoolVar(&useNaturalBleed, "natural_bleed", false, "force the use of natural bleeds given by original trim(crop) & media boxes")
 	flagset.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
 	flagset.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flagset.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
@@ -306,6 +309,8 @@ func param() error {
 		case "bleed":
 			bleedx = bleed
 			bleedy = bleed
+		case "natural_bleed":
+			useNaturalBleed = true
 		case "bookletMode":
 			bookletMode = true
 			creep *= creator.PPMM
@@ -314,7 +319,7 @@ func param() error {
 			}
 		}
 	})
-	// last edge is further inside mediabox by bleed amount
+	// last edge is further inside trimbox by bleed amount
 	// adjust offsets otherwise they will be aware only by media edge
 	offx -= bleedx
 	offy -= bleedy
@@ -340,5 +345,10 @@ func (v *ff) Set(value string) error {
 }
 
 func (v *ff) String() string {
-	return "mediabox value" //fmt.Sprintf("%v", v)
+	str := ""
+	for _, e := range *v {
+		str += strconv.FormatFloat(e, 'f', 2, 64)
+	}
+	return str
+	//return "trimbox value" //fmt.Sprintf("%v", v)
 }

@@ -12,6 +12,7 @@ github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/gunnsth/pkcs7 v0.0.0-20181213175627-3cffc6fbfe83 h1:saj5dTV7eQ1wFg/gVZr1SfbkOmg8CYO9R8frHgQiyR4=
 github.com/gunnsth/pkcs7 v0.0.0-20181213175627-3cffc6fbfe83/go.mod h1:xaGEIRenAiJcGgd9p62zbiP4993KaV3PdjczwGnP50I=
+github.com/innermond/impose v0.0.0-20201119182342-82a4e16b8b06/go.mod h1:lUHB+BeHo/6v0jHZ1M50Zg3V8BU+h7rzUqSc0SBxpQo=
 github.com/innermond/pange v0.0.0-20190718173403-0313c54d45f6 h1:GlHiqPLY+gxLnpqiOmxVbCE9zR0JNntt2JHJak4uRDw=
 github.com/innermond/pange v0.0.0-20190718173403-0313c54d45f6/go.mod h1:R6hcsCt5IWBa/5i+ozvAn5JidHO1em19JnhJSBVyu5Y=
 github.com/mattn/go-colorable v0.1.2 h1:/bC9yWikZXAL9uJdulbSfyVNIR3n3trXl+v8+1sx8mU=

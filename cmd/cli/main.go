@@ -101,11 +101,28 @@ func main() {
 
 	bbox, err := page.GetMediaBox()
 	fatal(err)
+	tbox, err := pdf.AdjustTrimBox(nil)
+	fatal(err)
 
-	if len(mediabox) != 0 {
-		// force mediabox
+	bx, by := tbox.Llx-bbox.Llx, tbox.Lly-bbox.Lly
+	if useNaturalBleed == true {
+		pdf.SetBleeds(bx, by)
+		bleedx, bleedy = bx, by
+	}
+	bx = math.Round(bx*100) / 100
+	by = math.Round(by*100) / 100
+	bx0 := math.Round(bleedx*100) / 100
+	by0 := math.Round(bleedy*100) / 100
+	if bx0 != bx || by0 != by {
+		bxmm := math.Round(bx/creator.PPMM*100) / 100
+		bymm := math.Round(by/creator.PPMM*100) / 100
+		log.Printf("sugested bleed x: %v sugested bleed y: %v\n", bxmm, bymm)
+	}
+
+	if useNaturalBleed == false && len(trimbox) != 0 {
+		// force trimbox
 		mbox := &model.PdfRectangle{}
-		pp := mediabox
+		pp := trimbox
 		switch len(pp) {
 		case 1:
 			mbox.Llx = pp[0] * creator.PPMM
@@ -128,32 +145,23 @@ func main() {
 			mbox.Urx = pp[2] * creator.PPMM
 			mbox.Ury = pp[3] * creator.PPMM
 		}
-		pdf.ForceMediaBox(mbox)
+		tbox, err = pdf.AdjustTrimBox(mbox)
+		fatal(err)
 		bbox, err = pdf.AdjustMediaBox()
 		fatal(err)
 	}
 
 	if verbosity > 0 {
-		log.Printf("mediabox: %v\n", bbox)
+		log.Printf("bleedbox: %v tribox: %v\n", bbox, tbox)
 	}
 
-	w := bbox.Urx - bbox.Llx
-	h := bbox.Ury - bbox.Lly
+	w := tbox.Urx - tbox.Llx
+	h := tbox.Ury - tbox.Lly
 
 	if verbosity > 0 {
 		log.Printf("small box width: %v; small box height height: %v\n", w/creator.PPMM, h/creator.PPMM)
 	}
 
-	bx, by := pdf.GetNaturalBleeds()
-	bx = math.Round(bx*100) / 100
-	by = math.Round(by*100) / 100
-	bx0 := math.Round(bleedx*100) / 100
-	by0 := math.Round(bleedy*100) / 100
-	if bx0 != bx || by0 != by {
-		bxmm := math.Round(bx/creator.PPMM*100) / 100
-		bymm := math.Round(by/creator.PPMM*100) / 100
-		log.Printf("sugested bleed x: %v sugested bleed y: %v\n", bxmm, bymm)
-	}
 	// cropmarks adds extra to dimensions
 	extw := offx + markw
 	exth := offy + markh
