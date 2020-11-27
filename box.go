@@ -64,14 +64,14 @@ func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
 	available := bb.Big.AvailableWidth()
 	i := 0
 	for wpages < available {
-		wpages += (bb.Small.Width + 2*bb.BleedX)
+		wpages += bb.Small.Width
 		// sensible to grid
 		if i == bb.Col*bb.CloneX {
 			break
 		}
 		i++
 	}
-	wpages -= (bb.Small.Width + 2*bb.BleedX)
+	wpages -= bb.Small.Width
 	bb.Big.Left = (bb.Big.Width - wpages) * 0.5
 	bb.Big.Right = bb.Big.Left
 }
@@ -81,14 +81,14 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 	available := bb.Big.AvailableHeight()
 	i := 0
 	for hpages < available {
-		hpages += (bb.Small.Height + 2*bb.BleedY)
+		hpages += bb.Small.Height
 		// sensible to grid
 		if i == bb.Row*bb.CloneY {
 			break
 		}
 		i++
 	}
-	hpages -= (bb.Small.Height + 2*bb.BleedY)
+	hpages -= bb.Small.Height
 	bb.Big.Top = (bb.Big.Height - hpages) * 0.5
 	bb.Big.Bottom = bb.Big.Top
 }
@@ -97,12 +97,12 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 const epsilon = 1e-9
 
 func (bb *Boxes) EnoughWidth() bool {
-	dif := bb.Big.AvailableWidth() - float64(bb.Col*bb.CloneX)*(bb.Small.Width+2*bb.BleedX)
+	dif := bb.Big.AvailableWidth() - float64(bb.Col*bb.CloneX)*bb.Small.Width
 	return dif > 0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	dif := bb.Big.AvailableHeight() - float64(bb.Row*bb.CloneY)*(bb.Small.Height+2*bb.BleedY)
+	dif := bb.Big.AvailableHeight() - float64(bb.Row*bb.CloneY)*bb.Small.Height
 	return dif > 0 || math.Abs(dif) < epsilon
 }
 
@@ -139,21 +139,21 @@ func (bb *Boxes) GuessGrid() (col, row int) {
 		if !stopCountingCol {
 			col++
 		}
-		endx = xpos + float64(bb.Small.Width+2*bb.BleedX)
+		endx = xpos + float64(bb.Small.Width)
 		peakx = bb.Big.AvailableWidth()
 		//	float64 endx > peakx
 		if math.Abs(endx-peakx) > epsilon {
 			stopCountingCol = true
 			xpos = bb.Big.Left
-			ypos += float64(bb.Small.Height + 2*bb.BleedY)
-			endy = ypos + float64(bb.Small.Height+2*bb.BleedY)
+			ypos += float64(bb.Small.Height)
+			endy = ypos + float64(bb.Small.Height)
 			peaky = bb.Big.AvailableHeight()
 			row++
 			if math.Abs(endy-peaky) > epsilon {
 				break
 			}
 		}
-		xpos += float64(bb.Small.Width + 2*bb.BleedX)
+		xpos += float64(bb.Small.Width)
 	}
 	return
 }

@@ -147,16 +147,16 @@ func main() {
 		}
 		tbox, err = pdf.AdjustTrimBox(mbox)
 		fatal(err)
-		bbox, err = pdf.AdjustMediaBox()
-		fatal(err)
 	}
+	bbox, err = pdf.AdjustMediaBox()
+	fatal(err)
 
 	if verbosity > 0 {
 		log.Printf("bleedbox: %v tribox: %v\n", bbox, tbox)
 	}
 
-	w := tbox.Urx - tbox.Llx
-	h := tbox.Ury - tbox.Lly
+	w := bbox.Urx - bbox.Llx
+	h := bbox.Ury - bbox.Lly
 
 	if verbosity > 0 {
 		log.Printf("small box width: %v; small box height height: %v\n", w/creator.PPMM, h/creator.PPMM)
@@ -175,11 +175,11 @@ func main() {
 	}
 
 	if autopage {
-		width = left + float64(clonex)*float64(col)*(w+2*bleedx) + right + 2*extw + 2*autopadding
-		height = top + float64(cloney)*float64(row)*(h+2*bleedy) + bottom + 2*exth + 2*autopadding
+		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
+		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = left + float64(clonex)*float64(col)*(h+2*bleedy) + right + 2*extw + 2*autopadding
-			height = top + float64(cloney)*float64(row)*(w+2*bleedx) + bottom + 2*exth + 2*autopadding
+			width = left + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
+			height = top + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
 	}
 

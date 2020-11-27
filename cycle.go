@@ -144,25 +144,25 @@ grid:
 				i++
 				// signal page drawing
 				c <- i
-				xpos += (w + 2*bb.BleedX)
+				xpos += w
 
 				// overflow num pages?
 				if i >= bb.Num {
 					gridCounter++
 					bb.putRow(gridbk)
 					if bb.cropPage == 0 || gridCounter == bb.cropPage {
-						bb.DrawCropmark()
+						//bb.DrawCropmark()
 					}
 					break grid
 				}
 			}
 			bb.putRow(gridbk)
-			ypos += (h + 2*bb.BleedY)
+			ypos += h
 			xpos = bb.Big.Left
 		}
 		gridCounter++
 		if bb.cropPage == 0 || gridCounter == bb.cropPage {
-			bb.DrawCropmark()
+			//bb.DrawCropmark()
 		}
 	}
 	close(c)
@@ -171,8 +171,8 @@ grid:
 func (bb *Boxes) putRow(gridbk *creator.Block) {
 	for j := 0; j < bb.CloneY; j++ {
 		for i := 0; i < bb.CloneX; i++ {
-			var xk = float64(i) * float64(bb.Col) * (bb.Small.Width + 2*bb.BleedX)
-			var yk = float64(j) * float64(bb.Row) * (bb.Small.Height + 2*bb.BleedY)
+			var xk = float64(i) * float64(bb.Col) * bb.Small.Width
+			var yk = float64(j) * float64(bb.Row) * bb.Small.Height
 			gridbk.SetPos(xk, yk)
 			bb.Creator.Draw(gridbk)
 		}
@@ -180,166 +180,6 @@ func (bb *Boxes) putRow(gridbk *creator.Block) {
 }
 
 func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64, isWall Side) error {
-	var (
-		err error
-		//w, h  = bb.Small.Width, bb.Small.Height
-		angle = bb.Small.Angle
-		dt    = bb.DeltaPos
-
-		bk *creator.Block
-	)
-
-	bk, err = bb.Reader.BlockFromPage(num)
-	if err != nil {
-		return err
-	}
-
-	// lay down imported page
-	xposx, yposy := xpos, ypos
-	bk.SetAngle(angle)
-	// bk is top left corner oriented by framework choice
-	// Clip is bottom right oriented by pdf specification
-	// angle is counter clock wise, so -90 is clock wise
-	// do the math!!!
-	var (
-		w                = bk.Width()
-		h                = bk.Height()
-		dx, dy           = bb.Reader.GetBleeds()
-		extended_outside = 2 * creator.PPMM
-	)
-	w -= 2 * dx
-	h -= 2 * dy
-	log.Printf("page %d is %v , bleed %v %v", num, isWall, dx/creator.PPMM, dy/creator.PPMM)
-
-	switch isWall {
-	case TL:
-		// extend to outside left
-		if dx == 0 {
-			// grow by dx
-			w += extended_outside
-			// pull left
-			dx = -extended_outside
-		} else {
-			w += 2 * dx
-			dx = -dx
-		}
-		// extend to outside top
-		if dy == 0 {
-			h += extended_outside
-		} else {
-			h += 2 * dy
-			//dy = -dy
-		}
-	case TR:
-		if dx == 0 {
-			w += extended_outside
-		} else {
-			w += 2 * dx
-			dx = -dx
-		}
-		if dy == 0 {
-			h += extended_outside
-		} else {
-			h += 2 * dy
-			//dy = -dy
-		}
-	case T:
-		if dy == 0 {
-			h += extended_outside
-		} else {
-			h += 2 * dy
-			//dy = -dy
-		}
-		w += 2 * dx
-		dx = -dx
-	case L:
-		if dx == 0 {
-			// grow by dx
-			w += extended_outside
-			// pull left
-			dx = -extended_outside
-		} else {
-			w += 2 * dx
-			dx = -dx
-		}
-		h += 2 * dy
-		dy = -dy
-	case R:
-		if dx == 0 {
-			w += extended_outside
-		} else {
-			w += 2 * dx
-			dx = -dx
-		}
-		h += 2 * dy
-		dy = -dy
-	case BL:
-		if dx == 0 {
-			w += extended_outside
-			dx = -extended_outside
-		} else {
-			w += 2 * dx
-			dx = -dx
-		}
-		if dy == 0 {
-			h += extended_outside
-			dy = -extended_outside
-		} else {
-			h += 2 * dy
-			dy = -dy
-		}
-	case BR:
-		if dx == 0 {
-			w += extended_outside
-		} else {
-			w += 2 * dx
-			dx = -dx
-		}
-		if dy == 0 {
-			h += extended_outside
-			dy = -extended_outside
-		} else {
-			h += 2 * dy
-			dy = -dy
-		}
-	case B:
-		if dy == 0 {
-			h += extended_outside
-			dy = -extended_outside
-		} else {
-			h += 2 * dy
-			dy = -dy
-		}
-		w += 2 * dx
-		dx = -dx
-	case Inside:
-		w += 2 * dx
-		dx = -dx
-		h += 2 * dy
-		dy = -dy
-	}
-
-	xposx += dt
-	switch angle {
-	case 0.0:
-		bk.Clip(dx, dy, w, h, bb.Outline)
-	case -90, 270:
-		bk.Clip(0, -dt, w, h, bb.Outline)
-	case 90, -270:
-		bk.Clip(0, dt, w, h, bb.Outline)
-	case 180, -180:
-		bk.Clip(dt, 0, w, h, bb.Outline)
-	default:
-		bk.Clip(dt, 0, w, h, bb.Outline)
-	}
-	// layout page
-	bk.SetPos(xposx, yposy)
-	_ = block.Draw(bk)
-
-	return err
-}
-
-func (bb *Boxes) _DrawPage(num int, xpos, ypos float64) error {
 	var (
 		err   error
 		w, h  = bb.Small.Width, bb.Small.Height
@@ -361,27 +201,91 @@ func (bb *Boxes) _DrawPage(num int, xpos, ypos float64) error {
 	// Clip is bottom right oriented by pdf specification
 	// angle is counter clock wise, so -90 is clock wise
 	// do the math!!!
+	var (
+		// assume mediabox = trimbox + 2*bleed
+		//w      = bk.Width()
+		//h      = bk.Height()
+		dx, dy = bb.Reader.GetBleeds()
+	//	extended_outside = 2 * creator.PPMM
+	)
+	log.Printf("page %d is %v, bleed %v %v", num, isWall, dx/creator.PPMM, dy/creator.PPMM)
+
+	/*switch isWall {
+	case TL:
+		// extend to outside left
+		if dx == 0 {
+			// grow by dx
+			w += extended_outside
+			// pull left
+			dx = -extended_outside
+		}
+		// extend to outside top
+		if dy == 0 {
+			h += extended_outside
+		}
+	case TR:
+		if dx == 0 {
+			w += extended_outside
+		}
+		if dy == 0 {
+			h += extended_outside
+		}
+	case T:
+		if dy == 0 {
+			h += extended_outside
+		}
+	case L:
+		if dx == 0 {
+			// grow by dx
+			w += extended_outside
+			// pull left
+			dx = -extended_outside
+		}
+	case R:
+		if dx == 0 {
+			w += extended_outside
+		}
+	case BL:
+		if dx == 0 {
+			w += extended_outside
+			dx = -extended_outside
+		}
+		if dy == 0 {
+			h += extended_outside
+			dy = -extended_outside
+		}
+	case BR:
+		if dx == 0 {
+			w += extended_outside
+		}
+		if dy == 0 {
+			h += extended_outside
+			dy = -extended_outside
+		}
+	case B:
+		if dy == 0 {
+			h += extended_outside
+			dy = -extended_outside
+		}
+	case Inside:
+	}*/
+
+	xposx += dt
 	switch angle {
 	case 0.0:
-		xposx += dt
-		bk.Clip(-1*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(0, 0, w, h, bb.Outline)
 	case -90, 270:
-		xposx += w
-		xposx += dt
-		bk.Clip(0, -dt, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(0, -dt, w, h, bb.Outline)
 	case 90, -270:
-		yposy += h
-		xposx += dt
-		bk.Clip(0, dt, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(0, dt, w, h, bb.Outline)
 	case 180, -180:
-		xposx += w
-		yposy += h
-		xposx += dt
-		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(dt, 0, w, h, bb.Outline)
+	default:
+		bk.Clip(dt, 0, w, h, bb.Outline)
 	}
 	// layout page
 	bk.SetPos(xposx, yposy)
-	_ = bb.Creator.Draw(bk)
+	_ = block.Draw(bk)
 
 	return err
 }

@@ -3,7 +3,6 @@ package impose
 import (
 	"errors"
 	"io"
-	"log"
 
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
@@ -73,23 +72,32 @@ func (r *PdfReader) AdjustMediaBox() (*model.PdfRectangle, error) {
 		return nil, err
 	}
 
+	// expand with bleedx and bleedy
+	dx := r.dx
+	dy := r.dy
+	if r.dx == 0 {
+		dx = 2 * creator.PPMM
+	}
+	if r.dy == 0 {
+		dy = 2 * creator.PPMM
+	}
 	// MediaBox = TrimBox + 2*bleed
 	mbox := &model.PdfRectangle{}
-	// expand with bleedx and bleedy
-	mbox.Llx = tbox.Llx - r.dx
-	mbox.Lly = tbox.Lly - r.dy
-	mbox.Urx = tbox.Urx + r.dx
-	mbox.Ury = tbox.Ury + r.dy
+	mbox.Llx = tbox.Llx - dx
+	mbox.Lly = tbox.Lly - dy
+	mbox.Urx = tbox.Urx + dx
+	mbox.Ury = tbox.Ury + dy
 	// move to 0,0
-	tbox.Llx -= 2 * mbox.Llx
-	mbox.Urx -= 2 * mbox.Llx
+	mbox.Urx -= mbox.Llx
 	mbox.Llx = 0
-	tbox.Lly -= 2 * mbox.Lly
-	mbox.Ury -= 2 * mbox.Lly
+	mbox.Ury -= mbox.Lly
 	mbox.Lly = 0
+	tbox.Llx = dx
+	tbox.Urx = mbox.Urx - dx
+	tbox.Lly = dy
+	tbox.Ury = mbox.Ury - dy
 	r.pg.MediaBox = mbox
 	r.pg.TrimBox = tbox
-	log.Println(mbox, tbox)
 	// if mediabox is smaller than trim + bleed computed enlarge
 	// mediabox width smaller than adjusted mbox width
 	/*if mediabox.Urx-mediabox.Llx <= mbox.Urx-mbox.Llx ||

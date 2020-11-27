@@ -18,8 +18,8 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 	//	w += 2 * bleedx
 	//	h += 2 * bleedy
 	// extended to enncompass cropmarks
-	cros2bw := float64(col)*(w+2*bleedx) + 2*extw
-	cros2bh := float64(row)*(h+2*bleedy) + 2*exth
+	cros2bw := float64(col)*w + 2*extw
+	cros2bh := float64(row)*h + 2*exth
 	// create cropmarks block
 	crosb := creator.NewBlock(cros2bw, cros2bh)
 	crosb.SetPos(0.0, 0.0)
@@ -32,8 +32,8 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 	// used to skip creation of marks in between when booklet
 	// values 0 and 1 are because marks are created in pair
 	// create top line of cropmarks
-	rx := float64(col-1)*(w+2*bleedx) + w + extw + (extw - markw)
-	ry := float64(row-1)*(h+2*bleedy) + h + exth + (exth - markh)
+	rx := float64(col)*w + extw + (extw - markw)
+	ry := float64(row)*h + exth + (exth - markh)
 	for clonex > 0 {
 		clonex--
 		if bookletMode {
@@ -48,7 +48,7 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 		}
 		for x := 0; x < col; x++ {
 			// top line with space for cropmark
-			kx := float64(x)*(w+2*bleedx) - 0.5*lw + extw
+			kx := float64(x)*w - 0.5*lw + extw
 			l := c.NewLine(kx, 0, kx, markh)
 			l.SetLineWidth(lw)
 			crosb.Draw(l)
@@ -78,7 +78,7 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 		// create cropmarks left line
 		for y := 0; y < row; y++ {
 			// left line with space for cropmark
-			ky := float64(y)*(h+2*bleedy) + 0.5*lw + exth
+			ky := float64(y)*h + 0.5*lw + exth
 			l := c.NewLine(0, ky, markw, ky)
 			l.SetLineWidth(lw)
 			crosb.Draw(l)
