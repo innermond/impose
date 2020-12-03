@@ -3,6 +3,7 @@ package impose
 import (
 	"errors"
 	"io"
+	"log"
 
 	"github.com/unidoc/unipdf/v3/creator"
 	"github.com/unidoc/unipdf/v3/model"
@@ -32,10 +33,12 @@ func (r *PdfReader) AdjustTrimBox(newbox *model.PdfRectangle) (*model.PdfRectang
 	}
 
 	tbox, err := r.pg.GetBox("TrimBox")
+	log.Printf("original trimbox: %v \n", tbox)
 	// no trimbox
 	if err != nil {
 		// try cropbox
 		cbox, err := r.pg.GetBox("CropBox")
+		log.Printf("original cropbox: %v \n", cbox)
 		if err == nil {
 			tbox = cbox
 		} else {
@@ -46,6 +49,7 @@ func (r *PdfReader) AdjustTrimBox(newbox *model.PdfRectangle) (*model.PdfRectang
 			}
 		}
 	}
+	log.Printf("guessed tbox: %v \n", tbox)
 
 	if newbox != nil {
 		// lower point is relative to the estimated tbox
@@ -54,6 +58,7 @@ func (r *PdfReader) AdjustTrimBox(newbox *model.PdfRectangle) (*model.PdfRectang
 		// upper point is calculated as newbox's upper point contains the width & height desired
 		tbox.Urx = tbox.Llx + newbox.Urx
 		tbox.Ury = tbox.Lly + newbox.Ury
+		log.Printf("forced tbox: %v \n", tbox)
 	}
 
 	r.pg.TrimBox = tbox

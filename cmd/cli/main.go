@@ -101,6 +101,9 @@ func main() {
 
 	bbox, err := page.GetMediaBox()
 	fatal(err)
+	if verbosity > 0 {
+		log.Printf("original bleedbox: %v\n", bbox)
+	}
 	tbox, err := pdf.AdjustTrimBox(nil)
 	fatal(err)
 

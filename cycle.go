@@ -101,6 +101,7 @@ grid:
 			)
 			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
+				log.Println("xpos ypod", xpos, ypos)
 				isWall = Inside
 				if x == 0 && y == 0 {
 					isWall = TL
@@ -156,7 +157,8 @@ grid:
 					break grid
 				}
 			}
-			bb.putRow(gridbk)
+			//bb.putRow(gridbk)
+			bb.Creator.Draw(gridbk)
 			ypos += h
 			xpos = bb.Big.Left
 		}
@@ -273,7 +275,7 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	xposx += dt
 	switch angle {
 	case 0.0:
-		bk.Clip(0, 0, w, h, bb.Outline)
+		//bk.Clip(dx, dy, w, h, bb.Outline)
 	case -90, 270:
 		bk.Clip(0, -dt, w, h, bb.Outline)
 	case 90, -270:
