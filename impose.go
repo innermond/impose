@@ -29,7 +29,7 @@ func (bb *Boxes) Impose(
 	} else {
 		padd := len(pxp) % len(flow)
 		if padd != 0 {
-			pxp = append(pxp, make([]int, padd)...)
+			pxp = append(pxp, make([]int, len(flow)-padd)...)
 		}
 	}
 
