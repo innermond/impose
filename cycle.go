@@ -183,10 +183,11 @@ func (bb *Boxes) putRow(gridbk *creator.Block) {
 
 func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64, isWall Side) error {
 	var (
-		err   error
-		w, h  = bb.Small.Width, bb.Small.Height
-		angle = bb.Small.Angle
-		dt    = bb.DeltaPos
+		err    error
+		w, h   = bb.Small.Width, bb.Small.Height
+		angle  = bb.Small.Angle
+		dt     = bb.DeltaPos
+		bx, by = bb.BleedX, bb.BleedY
 
 		bk *creator.Block
 	)
@@ -275,7 +276,7 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	xposx += dt
 	switch angle {
 	case 0.0:
-		//bk.Clip(dx, dy, w, h, bb.Outline)
+		bk.Clip(bx, by, w, h, bb.Outline)
 	case -90, 270:
 		bk.Clip(0, -dt, w, h, bb.Outline)
 	case 90, -270:
