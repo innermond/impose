@@ -227,9 +227,8 @@ func param() error {
 		flagset.Parse(spec)
 	default:
 		same, spec = clivide(os.Args[1:], commonFlags())
+		initFlagDuplex(flagset)
 		flagset.Parse(spec)
-		flagset.Float64Var(&turn, "turn", 0.0, "rotate page with specified angle")
-		flagset.StringVar(&flow, "flow", "", "change natural order of pages")
 		if !isFlag(cmd) {
 			usage = usagefn("not defined")
 		}
