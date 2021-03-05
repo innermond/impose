@@ -6,83 +6,63 @@ import (
 )
 
 var (
-	ErrPositiveInt = errors.New("only positive int")
+	ErrPositiveInt = errors.New("got negative value")
+)
+
+const (
+	end  = -1
+	half = -2
+	odd  = -3
+	even = -4
 )
 
 func On(in []int, as []int) (out []int, err error) {
-	const (
-		end   = -1
-		half  = -2
-		odd   = -3
-		even  = -4
-		empty = 0
-	)
-
-	var (
-		lenas = len(as)
-		as0   = make([]int, lenas)
-		el    int
-	)
-	copy(as0, as)
-
-	// only positive ints
-	for _, i := range in {
-		if i < 0 {
-			return nil, ErrPositiveInt
-		}
-	}
-flow:
-	for {
-		// as was modified in order to cope with decrementing
-		// we refresh it
-		copy(as, as0)
-		for i := 0; i < lenas; i++ {
-			// consumed, no more work here
-			if len(in) == 0 {
-				break flow
+	l := len(as)
+	for len(in) > 0 {
+		chunk := []int{}
+		in2 := []int{}
+		for _, x := range as {
+			lin := len(in)
+			if l > lin {
+				in = append(in, make([]int, l-lin)...)
+				lin = len(in)
 			}
-
-			// asked index
-			inx := as[i]
-
-			// here inx can point outside of in
-			// so add empty value
-			if len(in) <= inx {
-				out = append(out, empty)
-				continue
-			}
-
-			// special case end
-			if inx == end {
-				inx = len(in) - 1
-				el = in[inx]
-				out = append(out, el)
-				in = append([]int{}, in[:inx]...)
-				continue
-			}
-			// special case half
-			if inx == half {
-				inx = int(math.Ceil(float64(len(in))*0.5)) - 1
-				el = in[inx]
-				out = append(out, el)
-				in = append(in[:inx], in[inx+1:]...)
-				continue
-			}
-
-			// regular cases
-			el = in[inx]
-			// grow
-			out = append(out, el)
-			// shrink
-			in = append(in[:inx], in[inx+1:]...)
-
-			// what is over inx next iteration should be decremented
-			for x := 0; x < lenas; x++ {
-				if as[x] >= inx && as[x] != 0 {
-					as[x]--
+			//fmt.Println("x", x)
+			switch x {
+			case end:
+				lin--
+				chunk = append(chunk, in[lin])
+				in2 = append([]int{}, in2[:lin]...)
+			case half:
+				middle := int(math.Ceil(float64(lin)*0.5)) - 1
+				chunk = append(chunk, in[middle])
+				in2 = append(in2[:middle], in2[middle+1:]...)
+			default:
+				x--
+				//fmt.Println("default x", x, "in[x]", in[x])
+				if x < 0 {
+					return nil, ErrPositiveInt
 				}
+				chunk = append(chunk, in[x])
+				// keep indexes removed from in
+				in2 = append(in2, x)
 			}
 		}
+		for _, x := range in2 {
+			// mark hole
+			in[x] = -999
+		}
+		// in losts its elements
+		in2 = []int{}
+		for _, x := range in {
+			if x != -999 {
+				in2 = append(in2, x)
+			}
+		}
+		in = in2
+
+		out = append(out, chunk...)
+
 	}
-	return
+	return out, nil
 }
