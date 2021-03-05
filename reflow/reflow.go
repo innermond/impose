@@ -2,7 +2,6 @@ package reflow
 
 import (
 	"errors"
-	"math"
 )
 
 var (
@@ -12,54 +11,51 @@ var (
 const (
 	end  = -1
 	half = -2
-	odd  = -3
-	even = -4
 )
 
 func On(in []int, as []int) (out []int, err error) {
 	l := len(as)
+	// as long we have something to work on
 	for len(in) > 0 {
 		chunk := []int{}
-		in2 := []int{}
+		moved := []int{}
+		lin := len(in)
+		if l > lin {
+			in = append(in, make([]int, l-lin)...)
+			lin = len(in)
+		}
 		for _, x := range as {
-			lin := len(in)
-			if l > lin {
-				in = append(in, make([]int, l-lin)...)
-				lin = len(in)
-			}
-			//fmt.Println("x", x)
 			switch x {
 			case end:
 				lin--
 				chunk = append(chunk, in[lin])
-				in2 = append([]int{}, in2[:lin]...)
+				moved = append(moved, lin)
 			case half:
-				middle := int(math.Ceil(float64(lin)*0.5)) - 1
+				middle := lin / 2
 				chunk = append(chunk, in[middle])
-				in2 = append(in2[:middle], in2[middle+1:]...)
+				moved = append(moved, middle)
 			default:
 				x--
-				//fmt.Println("default x", x, "in[x]", in[x])
 				if x < 0 {
 					return nil, ErrPositiveInt
 				}
 				chunk = append(chunk, in[x])
 				// keep indexes removed from in
-				in2 = append(in2, x)
+				moved = append(moved, x)
 			}
 		}
-		for _, x := range in2 {
+		for _, x := range moved {
 			// mark hole
 			in[x] = -999
 		}
 		// in losts its elements
-		in2 = []int{}
+		moved = []int{}
 		for _, x := range in {
 			if x != -999 {
-				in2 = append(in2, x)
+				moved = append(moved, x)
 			}
 		}
-		in = in2
+		in = moved
 
 		out = append(out, chunk...)
 
