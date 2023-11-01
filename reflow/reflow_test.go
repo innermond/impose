@@ -56,10 +56,10 @@ func TestOn(t *testing.T) {
 	for i, tc := range tt {
 		got, err := On(tc.in, tc.as)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal(i, tc, err)
 		}
 		if !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("%d) got %+v want %+v", i+1, got, tc.want)
+			t.Errorf("%d) as %+v got %+v want %+v", i+1, tc.as, got, tc.want)
 		}
 	}
 }

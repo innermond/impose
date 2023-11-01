@@ -18,28 +18,35 @@ const (
 
 func On(in []int, as []int) (out []int, err error) {
 	l := len(as)
+	// run while we have something to process
 	for len(in) > 0 {
+
+		lin := len(in)
+
+		// init buffers
 		chunk := []int{}
 		in2 := []int{}
-		for _, x := range as {
-			lin := len(in)
-			if l > lin {
-				in = append(in, make([]int, l-lin)...)
-				lin = len(in)
+
+		// process in using as
+		for i, x := range as {
+			if i+1 > lin {
+				out = append(out, chunk...)
+				return
 			}
-			//fmt.Println("x", x)
 			switch x {
 			case end:
-				lin--
-				chunk = append(chunk, in[lin])
-				in2 = append([]int{}, in2[:lin]...)
+				chunk = append(chunk, in[lin-1])
+				in2 = append(in2, lin-1)
 			case half:
-				middle := int(math.Ceil(float64(lin)*0.5)) - 1
+				var middle int
+				if lin%2 == 0 {
+					middle = int(math.Ceil(float64(lin) * 0.5))
+				} else {
+					middle = int(math.Ceil(float64(lin)*0.5)) - 1
+				}
 				chunk = append(chunk, in[middle])
-				in2 = append(in2[:middle], in2[middle+1:]...)
+				in2 = append(in2, middle)
 			default:
-				x--
-				//fmt.Println("default x", x, "in[x]", in[x])
 				if x < 0 {
 					return nil, ErrPositiveInt
 				}
@@ -48,21 +55,26 @@ func On(in []int, as []int) (out []int, err error) {
 				in2 = append(in2, x)
 			}
 		}
+		out = append(out, chunk...)
+
+		if l == lin {
+			return
+		}
+
+		// mark to remove in's elements collected in chunk
 		for _, x := range in2 {
 			// mark hole
 			in[x] = -999
 		}
-		// in losts its elements
+		// rebuild  in but without elements collected in chunk
 		in2 = []int{}
 		for _, x := range in {
 			if x != -999 {
 				in2 = append(in2, x)
 			}
 		}
-		in = in2
-
-		out = append(out, chunk...)
-
+		// the new in that have lost some elements
+		in = append([]int{}, in2...)
 	}
 	return out, nil
 }
