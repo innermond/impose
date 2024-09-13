@@ -22,15 +22,36 @@ func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
 	return &PdfReader{r, nil, dx, dy}, nil
 }
 
+// transformMediaBox calculates the new MediaBox coordinates after rotation
+func transformMediaBox(llx, lly, urx, ury float64, rotation int64) (float64, float64, float64, float64) {
+	// Calculate width and height
+	width := urx - llx
+	height := ury - lly
+	// Calculate the center of the original MediaBox
+	cx := llx + width/2
+	cy := lly + height/2
+
+	switch rotation {
+	case 90:
+		return cx - height/2, cy - width/2, cx + height/2, cy + width/2
+	case 180:
+		return cx - width/2, cy - height/2, cx + width/2, cy + height/2
+	case 270:
+		return cx - height/2, cy - width/2, cx + height/2, cy + width/2
+	default:
+		return llx, lly, urx, ury
+	}
+}
+
 func (r *PdfReader) AdjustMediaBox() error {
 	if r.pg == nil {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
-  // TODO involve BleedBox
+	// TODO involve BleedBox
 	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
 	// TrimBox is the final page
 	tbox, err := r.pg.GetBox("TrimBox")
-  // no trimbox
+	// no trimbox
 	if err != nil {
 		cbox, err := r.pg.GetBox("CropBox")
 		if err == nil {
@@ -45,10 +66,19 @@ func (r *PdfReader) AdjustMediaBox() error {
 	// MediaBox = TrimBox + bleed
 	mbox := &model.PdfRectangle{}
 	// expand with bleedx and bleedy
-	mbox.Llx = tbox.Llx - r.dx
-	mbox.Lly = tbox.Lly - r.dy
-	mbox.Urx = tbox.Urx + r.dx
-	mbox.Ury = tbox.Ury + r.dy
+	llx := tbox.Llx - r.dx
+	lly := tbox.Lly - r.dy
+	urx := tbox.Urx + r.dx
+	ury := tbox.Ury + r.dy
+
+	//if r.pg.Rotate != nil {
+	//		llx, lly, urx, ury = transformMediaBox(llx, lly, urx, ury, *r.pg.Rotate)
+	//}
+
+	mbox.Llx = llx
+	mbox.Lly = lly
+	mbox.Urx = urx
+	mbox.Ury = ury
 
 	mediabox, err := r.pg.GetMediaBox()
 	// what?? we have at least a cropbox or a trimbox but not a mediabox???
@@ -86,5 +116,9 @@ func (r *PdfReader) BlockFromPage(num int) (*creator.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	return creator.NewBlockFromPage(r.pg)
+	block, err := creator.NewBlockFromPage(r.pg)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }

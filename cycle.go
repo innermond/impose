@@ -8,7 +8,7 @@ import (
 )
 
 func (bb *Boxes) Rotator(turn float64) func(int) {
-  bb.Small.Angle += turn
+	bb.Small.Angle += turn
 	//var isBack, isFace, stilBack, stilFace bool
 	return func(i int) {
 		if turn != 0.0 /*&& i >= bb.Col*bb.Row*/ {
@@ -84,7 +84,7 @@ grid:
 			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
 				if i >= bb.Num {
-          bb.putRow(rowbk)
+					bb.putRow(rowbk)
 					bb.DrawCropmark()
 					break grid
 				}
@@ -96,7 +96,7 @@ grid:
 					// put cropmarks on sheet
 					bb.DrawCropmark()
 					// initialize position
-          xpos = bb.Big.Left
+					xpos = bb.Big.Left
 					ypos = bb.Big.Top
 					bb.NewSheet()
 					nextSheet = false
@@ -116,7 +116,7 @@ grid:
 				c <- i
 				xpos += float64(w)
 			}
-      bb.putRow(rowbk)
+			bb.putRow(rowbk)
 			ypos += float64(h)
 			xpos = bb.Big.Left
 		}
@@ -125,19 +125,19 @@ grid:
 }
 
 func (bb *Boxes) putRow(rowbk *creator.Block) {
-  for j := 0; j < bb.CloneY; j++ {
-    for i := 0; i < bb.CloneX; i++ {
-      var xk = float64(i)*float64(bb.Col)*bb.Small.Width 
-      var yk = float64(j)*float64(bb.Row)*bb.Small.Height
-      rowbk.SetPos(xk, yk)
-      bb.Creator.Draw(rowbk)
-    }
-  }
+	for j := 0; j < bb.CloneY; j++ {
+		for i := 0; i < bb.CloneX; i++ {
+			var xk = float64(i) * float64(bb.Col) * bb.Small.Width
+			var yk = float64(j) * float64(bb.Row) * bb.Small.Height
+			rowbk.SetPos(xk, yk)
+			bb.Creator.Draw(rowbk)
+		}
+	}
 }
 
 func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64) error {
 	var (
-		err   error
+		err error
 		//w, h  = bb.Small.Width, bb.Small.Height
 		angle = bb.Small.Angle
 		dt    = bb.DeltaPos
@@ -152,32 +152,35 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 
 	// lay down imported page
 	xposx, yposy := xpos, ypos
-	bk.SetAngle(angle)
+
+	if angle != 0 {
+		bk.SetAngle(angle - bk.Angle())
+		log.Println(angle, num)
+	}
+	dd := bk.Width() - bk.Height()
+	if bk.Angle() != 0 {
+		xposx -= 0.5*dd + dt
+		yposy += 0.5*dd - dt
+	}
+	//angle += bk.Angle()
+	//log.Println(dt, dd)
 	// bk is top left corner oriented by framework choice
 	// Clip is bottom right oriented by pdf specification
 	// angle is counter clock wise, so -90 is clock wise
 	// do the math!!!
 	switch angle {
 	case 0.0:
-		xposx += dt
 		bk.Clip(-1*dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	case -90, 270:
-		//xposx += w
-		xposx += dt
 		bk.Clip(0, -dt, bk.Width(), bk.Height(), bb.Outline)
 	case 90, -270:
-		//yposy += h
-		xposx += dt
 		bk.Clip(0, dt, bk.Width(), bk.Height(), bb.Outline)
 	case 180, -180:
-		//xposx += w
-		//yposy += h
-		xposx += dt
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
-  default:
-		xposx += dt
+	default:
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}
+	xposx += dt
 	// layout page
 	bk.SetPos(xposx, yposy)
 	_ = block.Draw(bk)

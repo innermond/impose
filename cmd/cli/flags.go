@@ -212,9 +212,8 @@ func param() error {
 		clone = os.Args[2]
 		gridFlags["clone"] = false
 		same, spec = clivide(os.Args[3:], commonFlags())
-		initFlagDuplex(flagset)
 		repeat = true
-		// setup specifi flags then
+		// setup specific flags then
 		// parse specific flag if any
 		flagset.Parse(spec)
 	case "booklet":
@@ -223,7 +222,6 @@ func param() error {
 		bookletMode = true
 		// specific flag
 		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
-		initFlagDuplex(flagset)
 		flagset.Parse(spec)
 	default:
 		same, spec = clivide(os.Args[1:], commonFlags())
@@ -239,6 +237,7 @@ func param() error {
 	initGridFlags(flagset)
 	initMarkFlags(flagset)
 	initViewFlags(flagset)
+	initFlagDuplex(flagset)
 	initDebugFlags(flagset)
 	// end common flags definition
 	flagset.Parse(same)
