@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/innermond/impose"
 	"github.com/unidoc/unipdf/v3/creator"
@@ -39,6 +41,7 @@ var (
 	offset, offx, offy     float64
 	marksize, markw, markh float64
 	showcropmark           bool
+	showcropmarkPages      markPages
 	bookletMode            bool
 	creep                  float64
 	outline                bool
@@ -90,8 +93,9 @@ var (
 		"markh":    true,
 	}
 	viewFlags = map[string]bool{
-		"nocropmark": true,
-		"outline":    true,
+		"nocropmark":    true,
+		"cropmarkPages": true,
+		"outline":       true,
 	}
 	duplexFlags = map[string]bool{
 		"flip":    true,
@@ -152,6 +156,7 @@ func initMarkFlags(flagset *flag.FlagSet) {
 
 func initViewFlags(flagset *flag.FlagSet) {
 	flagset.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
+	flagset.Var(&showcropmarkPages, "cropmarkPages", "output will have cropmarks only on target pages")
 	flagset.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 }
 func initDebugFlags(flagset *flag.FlagSet) {
@@ -303,6 +308,8 @@ func param() error {
 			}
 		case "nocropmark":
 			showcropmark = false
+		case "cropmarkPages":
+			showcropmarkPages = nil
 		}
 	})
 	// last edge is further inside mediabox by bleed amount
@@ -315,4 +322,25 @@ func param() error {
 	}
 
 	return err
+}
+
+type markPages []int
+
+func (mp *markPages) String() string {
+	return fmt.Sprint(*mp)
+}
+
+func (mp *markPages) Set(v string) error {
+	if len(*mp) > 0 {
+		return errors.New("cropmark pages already set")
+	}
+
+	for _, s := range strings.Split(v, ",") {
+		n, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil {
+			return err
+		}
+		*mp = append(*mp, n)
+	}
+	return nil
 }

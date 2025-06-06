@@ -1,8 +1,13 @@
 package impose
 
+import (
+	"slices"
+)
+
 func (bb *Boxes) Repeat(
 	pxp []int,
-  turn float64,
+	turn float64,
+	showcropmarkPages []int,
 ) chan int {
 	// proxy variables
 	bb.Num = len(pxp)
@@ -11,9 +16,11 @@ func (bb *Boxes) Repeat(
 	adjuster := bb.Rotator(turn)
 	go func() {
 		// cycle every page and draw it
-		bb.CycleAdjusted(pxp, counter, adjuster)
+		n := bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
 		// put cropmarks for the last sheet
-		bb.DrawCropmark()
+		if showcropmarkPages == nil || slices.Contains(showcropmarkPages, n) {
+			bb.DrawCropmark()
+		}
 	}()
 	return counter
 }

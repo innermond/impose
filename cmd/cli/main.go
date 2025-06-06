@@ -191,16 +191,19 @@ func main() {
 			bookletMode,
 			angled,
 		)
+	} else {
+		showcropmarkPages = nil
 	}
-
+	fmt.Println(showcropmarkPages)
 	counter := make(chan int)
 	if repeat {
-		counter = bb.Repeat(pags, turn)
+		counter = bb.Repeat(pags, turn, showcropmarkPages)
 	} else if bookletMode {
 		counter = bb.Booklet(
 			pags,
 			creep,
 			flip, reverse, turn,
+			showcropmarkPages,
 		)
 	} else {
 		flowArr := []int{}
@@ -221,6 +224,7 @@ func main() {
 			flowArr,
 			weld,
 			flip, reverse, turn, duplex,
+			showcropmarkPages,
 		)
 	}
 

@@ -1,8 +1,10 @@
 package impose
 
 import (
+	"fmt"
 	"log"
 	"math"
+	"slices"
 
 	"github.com/unidoc/unipdf/v3/creator"
 )
@@ -56,11 +58,11 @@ func (bb *Boxes) Adjuster(turn float64, creepx []int, multiplier float64) func(i
 }
 
 // proxy func
-func (bb *Boxes) Cycle(pxp []int, c chan int) {
-	bb.CycleAdjusted(pxp, c, nil)
+func (bb *Boxes) Cycle(pxp []int, c chan int, showcropmarkPages []int) {
+	bb.CycleAdjusted(pxp, c, nil, showcropmarkPages)
 }
 
-func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
+func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int), showcropmarkPages []int) int {
 	var (
 		err        error
 		maxOnSheet = bb.Col * bb.Row
@@ -70,6 +72,7 @@ func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int)) {
 		nextSheet  bool
 	)
 	// start imposition
+	sheetNum := 0
 	bb.NewSheet()
 	var (
 		rowbk *creator.Block
@@ -85,7 +88,9 @@ grid:
 			for x := 0; x < bb.Col; x++ {
 				if i >= bb.Num {
 					bb.putRow(rowbk)
-					bb.DrawCropmark()
+					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
+						bb.DrawCropmark()
+					}
 					break grid
 				}
 				// check the need for a new page
@@ -93,12 +98,16 @@ grid:
 					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
 				if nextSheet {
+					fmt.Println(showcropmarkPages, sheetNum)
 					// put cropmarks on sheet
-					bb.DrawCropmark()
+					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
+						bb.DrawCropmark()
+					}
 					// initialize position
 					xpos = bb.Big.Left
 					ypos = bb.Big.Top
 					bb.NewSheet()
+					sheetNum++
 					nextSheet = false
 				}
 				if pxp[i] > 0 {
@@ -122,6 +131,7 @@ grid:
 		}
 	}
 	close(c)
+	return sheetNum
 }
 
 func (bb *Boxes) putRow(rowbk *creator.Block) {
@@ -180,6 +190,7 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	default:
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}
+	fmt.Println("dt", dt, "i", num)
 	xposx += dt
 	// layout page
 	bk.SetPos(xposx, yposy)

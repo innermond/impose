@@ -3,6 +3,7 @@ package impose
 import (
 	"log"
 	"math"
+	"slices"
 
 	"github.com/innermond/impose/duplex"
 	"github.com/innermond/impose/reflow"
@@ -13,6 +14,7 @@ func (bb *Boxes) Booklet(
 	creep float64,
 	flip, reverse bool,
 	turn float64,
+	showcropmarkPages []int,
 ) chan int {
 	// proxy variables
 	var (
@@ -71,9 +73,11 @@ func (bb *Boxes) Booklet(
 	counter := make(chan int)
 	go func() {
 		// cycle every page and draw it
-		bb.CycleAdjusted(pxp, counter, adjuster)
+		n := bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
 		// put cropmarks for the last sheet
-		bb.DrawCropmark()
+		if showcropmarkPages == nil || slices.Contains(showcropmarkPages, n) {
+			bb.DrawCropmark()
+		}
 	}()
 	return counter
 }
