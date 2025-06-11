@@ -156,7 +156,7 @@ func initMarkFlags(flagset *flag.FlagSet) {
 
 func initViewFlags(flagset *flag.FlagSet) {
 	flagset.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
-	flagset.Var(&showcropmarkPages, "cropmarkPages", "output will have cropmarks only on target pages")
+	flagset.Var(&showcropmarkPages, "cropmarkPages", "output will have cropmarks only on target pages - 1 first page, 2 second ans so on")
 	flagset.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 }
 func initDebugFlags(flagset *flag.FlagSet) {
@@ -282,6 +282,7 @@ func param() error {
 	markh *= creator.PPMM
 	autopadding *= creator.PPMM
 
+	// add values to flags that are just mentioned, with no value attacged in cli
 	flagset.Visit(func(f *flag.Flag) {
 		switch f.Name {
 		case "centerx":
@@ -308,8 +309,6 @@ func param() error {
 			}
 		case "nocropmark":
 			showcropmark = false
-		case "cropmarkPages":
-			showcropmarkPages = nil
 		}
 	})
 	// last edge is further inside mediabox by bleed amount
@@ -324,6 +323,7 @@ func param() error {
 	return err
 }
 
+// markPages knows what pages will show cropmarks
 type markPages []int
 
 func (mp *markPages) String() string {
@@ -331,16 +331,16 @@ func (mp *markPages) String() string {
 }
 
 func (mp *markPages) Set(v string) error {
+	// set it once
 	if len(*mp) > 0 {
 		return errors.New("cropmark pages already set")
 	}
-
 	for _, s := range strings.Split(v, ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(s))
 		if err != nil {
 			return err
 		}
-		*mp = append(*mp, n)
+		*mp = append(*mp, n-1)
 	}
 	return nil
 }

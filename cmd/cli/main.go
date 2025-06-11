@@ -194,7 +194,7 @@ func main() {
 	} else {
 		showcropmarkPages = nil
 	}
-	fmt.Println(showcropmarkPages)
+
 	counter := make(chan int)
 	if repeat {
 		counter = bb.Repeat(pags, turn, showcropmarkPages)

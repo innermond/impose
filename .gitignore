@@ -6,6 +6,6 @@
 *.map
 *.swp
 *.swo
-cmd/cli/cli
+cmd/cli/impose
 tmp
 tags
