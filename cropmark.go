@@ -16,8 +16,8 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 	w, h, bleedx, bleedy, col, row, extw, exth, markw, markh := bk.w, bk.h, bk.bleedx, bk.bleedy, bk.col, bk.row, bk.extw, bk.exth, bk.markw, bk.markh
 	c := bk.father.Creator
 	// extended to enncompass cropmarks
-	cros2bw := float64(col)*w + 2*extw
-	cros2bh := float64(row)*h + 2*exth
+	cros2bw := bk.father.ClonePadX + float64(col)*w + 2*extw
+	cros2bh := bk.father.ClonePadY + float64(row)*h + 2*exth
 	// create cropmarks block
 	crosb := creator.NewBlock(cros2bw, cros2bh)
 	crosb.SetPos(0.0, 0.0)

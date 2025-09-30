@@ -30,6 +30,8 @@ var (
 	grid                   string
 	repeat                 bool
 	clone                  string
+	clonepadx              float64
+	clonepady              float64
 	flow                   string
 	duplex                 bool
 	flip                   bool
@@ -75,11 +77,13 @@ var (
 		"angle":   true,
 	}
 	gridFlags = map[string]bool{
-		"grid":   true,
-		"clone":  true,
-		"flow":   true,
-		"pages":  true,
-		"duplex": true,
+		"grid":      true,
+		"clone":     true,
+		"clonepadx": true,
+		"clonepady": true,
+		"flow":      true,
+		"pages":     true,
+		"duplex":    true,
 	}
 	markFlags = map[string]bool{
 		"offset":   true,
@@ -138,6 +142,8 @@ func initGridFlags(flagset *flag.FlagSet) {
 	}
 	if gridFlags["clone"] {
 		flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
+		flagset.Float64Var(&clonepadx, "clonepadx", 0.0, "pad distance the clones respect along x axe")
+		flagset.Float64Var(&clonepady, "clonepady", 0.0, "pad distance the clones respect along y axe")
 	}
 	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
 }
@@ -235,7 +241,7 @@ func param() error {
 			usage = usagefn("not defined")
 		}
 	}
-
+	fmt.Println("init flags...")
 	initFileFlags(flagset)
 	initGeometryFlags(flagset)
 	initPositionFlags(flagset)
@@ -265,10 +271,12 @@ func param() error {
 	}
 
 	// all to points
-	left *= creator.PPMM
-	right *= creator.PPMM
-	top *= creator.PPMM
-	bottom *= creator.PPMM
+	clonepadx *= creator.PPMM
+	clonepady *= creator.PPMM
+	left = left*creator.PPMM - clonepadx*0.5
+	right = right*creator.PPMM + clonepadx*0.5
+	top = top*creator.PPMM - clonepady*0.5
+	bottom = bottom*creator.PPMM + clonepady*0.5
 	width *= creator.PPMM
 	height *= creator.PPMM
 	offset *= creator.PPMM
@@ -281,6 +289,8 @@ func param() error {
 	markw *= creator.PPMM
 	markh *= creator.PPMM
 	autopadding *= creator.PPMM
+
+	fmt.Println("clonepad", clonepadx, clonepady)
 
 	// add values to flags that are just mentioned, with no value attacged in cli
 	flagset.Visit(func(f *flag.Flag) {

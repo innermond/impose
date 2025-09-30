@@ -9,3 +9,4 @@
 cmd/cli/impose
 tmp
 tags
+cli

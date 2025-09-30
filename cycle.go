@@ -98,7 +98,7 @@ grid:
 					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
 				if nextSheet {
-					fmt.Println(showcropmarkPages, sheetNum)
+					fmt.Println("nextsheet", showcropmarkPages, sheetNum)
 					// put cropmarks on sheet
 					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
 						bb.DrawCropmark()
@@ -139,6 +139,16 @@ func (bb *Boxes) putRow(rowbk *creator.Block) {
 		for i := 0; i < bb.CloneX; i++ {
 			var xk = float64(i) * float64(bb.Col) * bb.Small.Width
 			var yk = float64(j) * float64(bb.Row) * bb.Small.Height
+			padx, pady := 0.0, 0.0
+			if i > 0 {
+				padx = float64(bb.ClonePadX)
+			}
+			if j > 0 {
+				pady = float64(bb.ClonePadY)
+			}
+			fmt.Println("putRow", padx, pady)
+			xk += padx
+			yk += pady
 			rowbk.SetPos(xk, yk)
 			bb.Creator.Draw(rowbk)
 		}

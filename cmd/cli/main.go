@@ -109,12 +109,13 @@ func main() {
 	clonex, cloney := 1, 1
 	clonex, cloney, err = parsex(clone)
 	fatal("clone: ", err)
+	println("clonepad", clonepadx, clonepady)
 	if autopage {
-		width = left + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
-		height = top + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
+		width = left + clonepadx + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
+		height = top + clonepady + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = left + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
-			height = top + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
+			width = left + clonepadx + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
+			height = top + clonepady + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
 	}
 
@@ -134,19 +135,22 @@ func main() {
 	}
 	smallbox := &impose.SmallBox{Box: &impose.Box{Width: w, Height: h}, Angle: angle}
 	bb := &impose.Boxes{
-		Big:      bigbox,
-		Small:    smallbox,
-		Col:      col,
-		Row:      row,
-		CloneX:   clonex,
-		CloneY:   cloney,
-		Num:      np,
-		Creator:  c,
-		Reader:   pdf,
-		Cropmark: nil,
-		Outline:  outline,
-		DeltaPos: 0.0,
+		Big:       bigbox,
+		Small:     smallbox,
+		Col:       col,
+		Row:       row,
+		CloneX:    clonex,
+		CloneY:    cloney,
+		ClonePadX: clonepadx,
+		ClonePadY: clonepady,
+		Num:       np,
+		Creator:   c,
+		Reader:    pdf,
+		Cropmark:  nil,
+		Outline:   outline,
+		DeltaPos:  0.0,
 	}
+	fmt.Printf("%#v\n", bb)
 
 	angled := false
 	if beSwitched {
