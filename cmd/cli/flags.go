@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -241,7 +242,7 @@ func param() error {
 			usage = usagefn("not defined")
 		}
 	}
-	fmt.Println("init flags...")
+	log.Println("init flags...")
 	initFileFlags(flagset)
 	initGeometryFlags(flagset)
 	initPositionFlags(flagset)
@@ -290,7 +291,7 @@ func param() error {
 	markh *= creator.PPMM
 	autopadding *= creator.PPMM
 
-	fmt.Println("clonepad", clonepadx, clonepady)
+	log.Println("clonepad", clonepadx, clonepady)
 
 	// add values to flags that are just mentioned, with no value attacged in cli
 	flagset.Visit(func(f *flag.Flag) {

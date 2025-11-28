@@ -1,7 +1,6 @@
 package impose
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"slices"
@@ -98,7 +97,7 @@ grid:
 					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
 				if nextSheet {
-					fmt.Println("nextsheet", showcropmarkPages, sheetNum)
+					log.Println("nextsheet", showcropmarkPages, sheetNum)
 					// put cropmarks on sheet
 					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
 						bb.DrawCropmark()
@@ -146,7 +145,7 @@ func (bb *Boxes) putRow(rowbk *creator.Block) {
 			if j > 0 {
 				pady = float64(bb.ClonePadY)
 			}
-			fmt.Println("putRow", padx, pady)
+			log.Println("putRow", padx, pady)
 			xk += padx
 			yk += pady
 			rowbk.SetPos(xk, yk)
@@ -200,7 +199,7 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	default:
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}
-	fmt.Println("dt", dt, "i", num)
+	log.Println("dt", dt, "i", num)
 	xposx += dt
 	// layout page
 	bk.SetPos(xposx, yposy)
