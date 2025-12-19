@@ -39,7 +39,8 @@ func (bb *Boxes) Booklet(
 	// for booklet two pages make a unit, they are "welded"
 	weld := 2
 	// calculate creep step
-	dx := creep / float64(len(pxp))
+	// 4 because on a imposed sheet are 4 pages
+	dx := 4 * creep / float64(len(pxp))
 	multiplier := 100.0
 	// round to nearest
 	dx = math.Round(dx*multiplier) / multiplier
