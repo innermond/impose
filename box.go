@@ -70,7 +70,7 @@ func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
 		i++
 	}
 	wpages -= bb.Small.Width
-	bb.Big.Left = -0.5*bb.ClonePadX + (bb.Big.Width-wpages)*0.5
+	bb.Big.Left = -0.5*(bb.ClonePadX*float64(bb.CloneX-1)) + (bb.Big.Width-wpages)*0.5
 	bb.Big.Right = bb.Big.Left
 }
 
@@ -87,7 +87,7 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 		i++
 	}
 	hpages -= bb.Small.Height
-	bb.Big.Top = -0.5*bb.ClonePadY + (bb.Big.Height-hpages)*0.5
+	bb.Big.Top = -0.5*(bb.ClonePadY*float64(bb.CloneY-1)) + (bb.Big.Height-hpages)*0.5
 	bb.Big.Bottom = bb.Big.Top
 }
 
@@ -95,17 +95,19 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 const epsilon = 1e-9
 
 func (bb *Boxes) EnoughWidth() bool {
-	//TODO cope with clonepadx
-	//dif := bb.Big.AvailableWidth() - float64(bb.ClonePadX) - float64(bb.Col*bb.CloneX)*bb.Small.Width
-	dif := bb.Big.AvailableWidth() - float64(bb.Col*bb.CloneX)*bb.Small.Width
-	return dif > 0 || math.Abs(dif) < epsilon
+	consumedWidth := float64(bb.Col) * bb.Small.Width
+	consumedCloned := float64((bb.CloneX - 1)) * bb.ClonePadX
+	consumed := consumedWidth + consumedCloned
+	dif := bb.Big.AvailableWidth() - consumed
+	return dif > 0.0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	//TODO cope with clonepady
-	//dif := bb.Big.AvailableHeight() - float64(bb.ClonePadY) - float64(bb.Row*bb.CloneY)*bb.Small.Height
-	dif := bb.Big.AvailableHeight() - float64(bb.Row*bb.CloneY)*bb.Small.Height
-	return dif > 0 || math.Abs(dif) < epsilon
+	consumedWidth := float64(bb.Row) * bb.Small.Height
+	consumedCloned := float64((bb.CloneY - 1)) * bb.ClonePadY
+	consumed := consumedWidth + consumedCloned
+	dif := bb.Big.AvailableHeight() - consumed
+	return dif > 0.0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) ParseFlow(flow string) ([]int, error) {

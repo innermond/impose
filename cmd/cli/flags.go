@@ -274,10 +274,10 @@ func param() error {
 	// all to points
 	clonepadx *= creator.PPMM
 	clonepady *= creator.PPMM
-	left = left*creator.PPMM - clonepadx*0.5
-	right = right*creator.PPMM + clonepadx*0.5
-	top = top*creator.PPMM - clonepady*0.5
-	bottom = bottom*creator.PPMM + clonepady*0.5
+	left = left * creator.PPMM
+	right = right * creator.PPMM
+	top = top * creator.PPMM
+	bottom = bottom * creator.PPMM
 	width *= creator.PPMM
 	height *= creator.PPMM
 	offset *= creator.PPMM

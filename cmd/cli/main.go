@@ -111,12 +111,15 @@ func main() {
 	fatal("clone: ", err)
 	println("clonepad", clonepadx, clonepady)
 	if autopage {
-		width = left + clonepadx + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
-		height = top + clonepady + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
+		clonepadxWidth := clonepadx * float64(clonex-1)
+		clonepadyHeight := clonepady * float64(cloney-1)
+		width = 2*left + clonepadxWidth + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
+		height = 2*top + clonepadyHeight + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = left + clonepadx + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
-			height = top + clonepady + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
+			width = 2*left + clonepadxWidth + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
+			height = 2*top + clonepadyHeight + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
+		println("clonepad adds", cloney, clonepady, clonepadyHeight)
 	}
 
 	// create a sheet page

@@ -125,6 +125,7 @@ grid:
 				xpos += float64(w)
 			}
 			bb.putRow(rowbk)
+			log.Println(bb.ClonePadY)
 			ypos += float64(h)
 			xpos = bb.Big.Left
 		}
@@ -140,10 +141,10 @@ func (bb *Boxes) putRow(rowbk *creator.Block) {
 			var yk = float64(j) * float64(bb.Row) * bb.Small.Height
 			padx, pady := 0.0, 0.0
 			if i > 0 {
-				padx = float64(bb.ClonePadX)
+				padx = float64(bb.ClonePadX) * float64(i)
 			}
 			if j > 0 {
-				pady = float64(bb.ClonePadY)
+				pady = float64(bb.ClonePadY) * float64(j)
 			}
 			log.Println("putRow", padx, pady)
 			xk += padx
