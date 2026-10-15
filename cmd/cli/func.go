@@ -10,9 +10,15 @@ import (
 	"github.com/innermond/impose"
 )
 
+// isFlag tells flags from values; a flag name starts with a letter,
+// so negative numbers, like -90 or -.5, are values
 func isFlag(fg string) bool {
-	is := len(fg) > 1 && fg[0] == '-' && fg[len(fg)-1] != '-'
-	return is
+	name := strings.TrimLeft(fg, "-")
+	if len(fg) < 2 || fg[0] != '-' || name == "" || fg[len(fg)-1] == '-' {
+		return false
+	}
+	c := name[0]
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
 // for cli divide a string slice, probably an os.Args[],
@@ -68,7 +74,7 @@ func clivide(cli []string, comflags map[string]bool) (common, specific []string)
 
 func parsex(x string) (col, row int, err error) {
 	// default value
-	if grid == "" {
+	if x == "" {
 		return 1, 1, nil
 	}
 
@@ -102,13 +108,12 @@ func deal(err error) {
 		return
 	}
 
-	// impose errors
-	switch impose.ErrCode(err.Error()) {
-	case impose.EINVALID, impose.ECONFLICT, impose.ENOTFOUND, impose.EINTERNAL:
-		log.Fatal(impose.ErrorMessage(err))
-	default:
-		log.Fatal(err)
+	// impose errors have a message meant for the user
+	var ierr *impose.Error
+	if errors.As(err, &ierr) {
+		log.Fatal(impose.ErrorMessage(ierr))
 	}
+	log.Fatal(err)
 }
 
 func fatal(err ...interface{}) {

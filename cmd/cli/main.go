@@ -19,7 +19,7 @@ func main() {
 	deal(err)
 
 	// profiling
-	cpu()
+	defer cpu()()
 
 	// catch termination
 	killChan := make(chan os.Signal, 1)
@@ -109,17 +109,15 @@ func main() {
 	clonex, cloney := 1, 1
 	clonex, cloney, err = parsex(clone)
 	fatal("clone: ", err)
-	println("clonepad", clonepadx, clonepady)
 	if autopage {
 		clonepadxWidth := clonepadx * float64(clonex-1)
 		clonepadyHeight := clonepady * float64(cloney-1)
-		width = 2*left + clonepadxWidth + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
-		height = 2*top + clonepadyHeight + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
+		width = left + clonepadxWidth + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
+		height = top + clonepadyHeight + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
 		if beSwitched {
-			width = 2*left + clonepadxWidth + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
-			height = 2*top + clonepadyHeight + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
+			width = left + clonepadxWidth + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
+			height = top + clonepadyHeight + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
 		}
-		println("clonepad adds", cloney, clonepady, clonepadyHeight)
 	}
 
 	// create a sheet page
@@ -153,12 +151,19 @@ func main() {
 		Outline:   outline,
 		DeltaPos:  0.0,
 	}
-	fmt.Printf("%#v\n", bb)
 
 	angled := false
 	if beSwitched {
 		bb.Small.Switch()
 		angled = true
+	}
+	// guess the grid, before centering that depends on a known grid
+	if grid == "" {
+		col, row := bb.GuessGrid()
+		if col < 1 || row < 1 {
+			log.Fatal("not even one page fits on the sheet")
+		}
+		log.Fatalf("suggested grid %dx%d", col, row)
 	}
 	// centering by changing margins
 	if centerx {
@@ -167,12 +172,6 @@ func main() {
 	if centery {
 		bb.AdjustMarginCenteringAlongHeight()
 	}
-	// guess the grid
-	if grid == "" {
-		col, row := bb.GuessGrid()
-		log.Fatalf("sugested grid %dx%d", col, row)
-	}
-
 	// start to lay down pages
 	top, right, bottom, left = bb.Big.Top, bb.Big.Right, bb.Big.Bottom, bb.Big.Left
 	col, row = bb.Col, bb.Row
@@ -215,13 +214,16 @@ func main() {
 	} else {
 		flowArr := []int{}
 		if len(flow) < 1 {
-			flowArr = []int{0}
+			flowArr = []int{1}
 		} else {
 			flowStr := strings.Split(flow, ",")
 			for _, val := range flowStr {
-				inx, err := strconv.Atoi(val)
+				inx, err := strconv.Atoi(strings.TrimSpace(val))
 				if err != nil {
-					log.Fatal(err)
+					log.Fatalf("flow: %v", err)
+				}
+				if inx < 1 {
+					log.Fatalf("flow: %d is not valid, pages are numbered from 1", inx)
 				}
 				flowArr = append(flowArr, inx)
 			}

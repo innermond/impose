@@ -44,6 +44,7 @@ var (
 	offset, offx, offy     float64
 	marksize, markw, markh float64
 	showcropmark           bool
+	nocropmark             bool
 	showcropmarkPages      markPages
 	bookletMode            bool
 	creep                  float64
@@ -107,6 +108,7 @@ var (
 		"turn":    true,
 		"reverse": true,
 		"duplex":  true,
+		"weld":    true,
 	}
 	debugFlags = map[string]bool{
 		"mem": true,
@@ -115,7 +117,7 @@ var (
 )
 
 func initFileFlags(flagset *flag.FlagSet) {
-	flagset.StringVar(&unit, "unit", "mm", "unit of measurements")
+	flagset.StringVar(&unit, "unit", "mm", "unit of lengths given in the command line: mm, cm, in, pt")
 	flagset.StringVar(&fn, "f", "", "source pdf file")
 }
 
@@ -143,9 +145,10 @@ func initGridFlags(flagset *flag.FlagSet) {
 	}
 	if gridFlags["clone"] {
 		flagset.StringVar(&clone, "clone", "1x1", "clone the groups")
-		flagset.Float64Var(&clonepadx, "clonepadx", 0.0, "pad distance the clones respect along x axe")
-		flagset.Float64Var(&clonepady, "clonepady", 0.0, "pad distance the clones respect along y axe")
 	}
+	// the pads are needed even when clone is not a flag, as in repeat mode
+	flagset.Float64Var(&clonepadx, "clonepadx", 0.0, "pad distance the clones respect along x axe")
+	flagset.Float64Var(&clonepady, "clonepady", 0.0, "pad distance the clones respect along y axe")
 	flagset.StringVar(&pages, "pages", "", "pages requested by imposition")
 }
 
@@ -162,7 +165,7 @@ func initMarkFlags(flagset *flag.FlagSet) {
 }
 
 func initViewFlags(flagset *flag.FlagSet) {
-	flagset.BoolVar(&showcropmark, "nocropmark", true, "output will not have cropmarks")
+	flagset.BoolVar(&nocropmark, "nocropmark", false, "output will not have cropmarks")
 	flagset.Var(&showcropmarkPages, "cropmarkPages", "output will have cropmarks only on target pages - 1 first page, 2 second ans so on")
 	flagset.BoolVar(&outline, "outline", false, "draw a containing rect around imported page")
 }
@@ -174,7 +177,7 @@ func initDebugFlags(flagset *flag.FlagSet) {
 
 func commonFlags() map[string]bool {
 	out := map[string]bool{}
-	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags, debugFlags}
+	fff := []map[string]bool{fileFlags, geometryFlags, positionFlags, gridFlags, markFlags, viewFlags, duplexFlags, debugFlags}
 	for _, ff := range fff {
 		for flagname, val := range ff {
 			out[flagname] = val
@@ -187,7 +190,7 @@ func initFlagDuplex(flagset *flag.FlagSet) {
 	flagset.Float64Var(&turn, "turn", 0.0, "rotate page with specified angle")
 	flagset.BoolVar(&flip, "flip", false, "flip grouped pages")
 	flagset.BoolVar(&reverse, "reverse", false, "reverse order of pages")
-	flagset.StringVar(&flow, "flow", "", "change natural order of pages")
+	flagset.StringVar(&flow, "flow", "", "order and repetition of pages inside every block of max(flow) pages, numbered from 1. ex: 1,1,1,2,2,2")
 	flagset.IntVar(&weld, "weld", 1, "length of pages group")
 	flagset.BoolVar(&duplex, "duplex", false, "activate duplex")
 }
@@ -219,6 +222,9 @@ func param() error {
 	switch cmd {
 	case "repeat":
 		// ./impose repeat 3x2 ...
+		if len(os.Args) < 3 || isFlag(os.Args[2]) {
+			return &impose.Error{Code: impose.EINVALID, Message: "repeat needs a grid, ex: repeat 3x2"}
+		}
 		grid = "1x1"
 		gridFlags["grid"] = false
 		clone = os.Args[2]
@@ -252,9 +258,8 @@ func param() error {
 	initFlagDuplex(flagset)
 	initDebugFlags(flagset)
 	// end common flags definition
-	flagset.Parse(same)
 	flagset.Usage = func() {
-		fmt.Fprintln(os.Stderr, `  -repeat command
+		fmt.Fprint(os.Stderr, `  -repeat command
 	repeat every requested page on imposition sheet in respect to grid
   -booklet command
   	booklet impose using a flow 4-1 2-3 dedicated for booklet
@@ -263,6 +268,7 @@ func param() error {
 		flagset.PrintDefaults()
 	}
 
+	flagset.Parse(same)
 	if usage != nil {
 		usage()
 	}
@@ -271,57 +277,65 @@ func param() error {
 		return errors.New("pdf file required")
 	}
 
-	// all to points
-	clonepadx *= creator.PPMM
-	clonepady *= creator.PPMM
-	left = left * creator.PPMM
-	right = right * creator.PPMM
-	top = top * creator.PPMM
-	bottom = bottom * creator.PPMM
-	width *= creator.PPMM
-	height *= creator.PPMM
-	offset *= creator.PPMM
-	offx *= creator.PPMM
-	offy *= creator.PPMM
-	bleed *= creator.PPMM
-	bleedx *= creator.PPMM
-	bleedy *= creator.PPMM
-	marksize *= creator.PPMM
-	markw *= creator.PPMM
-	markh *= creator.PPMM
-	autopadding *= creator.PPMM
+	// flags that were given in the command line, the rest keep their defaults
+	seen := map[string]bool{}
+	flagset.Visit(func(f *flag.Flag) { seen[f.Name] = true })
 
-	log.Println("clonepad", clonepadx, clonepady)
-
-	// add values to flags that are just mentioned, with no value attacged in cli
-	flagset.Visit(func(f *flag.Flag) {
-		switch f.Name {
-		case "centerx":
-			centerx = true
-		case "centery":
-			centery = true
-		case "center":
-			centerx = center
-			centery = center
-		case "offset":
-			offx = offset
-			offy = offset
-		case "marksize":
-			markw = marksize
-			markh = marksize
-		case "bleed":
-			bleedx = bleed
-			bleedy = bleed
-		case "bookletMode":
-			bookletMode = true
-			creep *= creator.PPMM
-			if creep > bleedx {
-				creep = bleedx
-			}
-		case "nocropmark":
-			showcropmark = false
+	// all lengths to points; defaults are in millimetres, values given by user are in -unit
+	ppu, err := unitFactor(unit)
+	if err != nil {
+		return &impose.Error{Code: impose.EINVALID, Message: err.Error()}
+	}
+	lengths := map[string]*float64{
+		"clonepadx": &clonepadx, "clonepady": &clonepady,
+		"left": &left, "right": &right, "top": &top, "bottom": &bottom,
+		"width": &width, "height": &height,
+		"offset": &offset, "offx": &offx, "offy": &offy,
+		"bleed": &bleed, "bleedx": &bleedx, "bleedy": &bleedy,
+		"marksize": &marksize, "markw": &markw, "markh": &markh,
+		"autopadding": &autopadding, "creep": &creep,
+	}
+	for name, length := range lengths {
+		if seen[name] {
+			*length *= ppu
+		} else {
+			*length *= creator.PPMM
 		}
-	})
+	}
+
+	// a general flag gives its value to the specific ones, unless these were given too
+	if seen["offset"] {
+		if !seen["offx"] {
+			offx = offset
+		}
+		if !seen["offy"] {
+			offy = offset
+		}
+	}
+	if seen["marksize"] {
+		if !seen["markw"] {
+			markw = marksize
+		}
+		if !seen["markh"] {
+			markh = marksize
+		}
+	}
+	if seen["bleed"] {
+		if !seen["bleedx"] {
+			bleedx = bleed
+		}
+		if !seen["bleedy"] {
+			bleedy = bleed
+		}
+	}
+	centerx = centerx || center
+	centery = centery || center
+	showcropmark = !nocropmark
+
+	// creep cannot exceed the bleed
+	if bookletMode && creep > bleedx {
+		creep = bleedx
+	}
 	// last edge is further inside mediabox by bleed amount
 	// adjust offsets otherwise they will be aware only by media edge
 	offx -= bleedx
@@ -354,4 +368,19 @@ func (mp *markPages) Set(v string) error {
 		*mp = append(*mp, n-1)
 	}
 	return nil
+}
+
+// unitFactor gives how many points a length unit has
+func unitFactor(u string) (float64, error) {
+	switch strings.ToLower(u) {
+	case "mm":
+		return creator.PPMM, nil
+	case "cm":
+		return 10 * creator.PPMM, nil
+	case "in", "inch":
+		return 72, nil
+	case "pt":
+		return 1, nil
+	}
+	return 0, fmt.Errorf("unknown unit %q, use mm, cm, in or pt", u)
 }

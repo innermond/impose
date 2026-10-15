@@ -7,17 +7,21 @@ import (
 	"runtime/pprof"
 )
 
-func cpu() {
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
-		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
-		}
-		defer f.Close()
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
+// cpu starts the cpu profiling, if requested, and gives back the func that stops it
+func cpu() (stop func()) {
+	if cpuprofile == "" {
+		return func() {}
+	}
+	f, err := os.Create(cpuprofile)
+	if err != nil {
+		log.Fatal("could not create CPU profile: ", err)
+	}
+	if err := pprof.StartCPUProfile(f); err != nil {
+		log.Fatal("could not start CPU profile: ", err)
+	}
+	return func() {
+		pprof.StopCPUProfile()
+		f.Close()
 	}
 }
 
