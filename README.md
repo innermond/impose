@@ -81,7 +81,7 @@ on the sides, or use `-autopage -center`. With zero margins the top and left mar
 | `-weld n` | 1 | Number of consecutive pages that stay together (a face group and its back group). Must divide the number of columns. |
 | `-flip` | off | Back sheet is mirrored along the columns (turn along the long edge). |
 | `-reverse` | off | Back sheet order is reversed. |
-| `-turn deg` | 0 | Extra rotation applied to the pages of back sheets (e.g. `180`). |
+| `-turn deg` | 0 | Extra rotation of pages (e.g. `180`). In `booklet` only the face sheets are rotated, so back sheets end up turned against them; in the other commands every page is rotated, like `-angle`. |
 
 ### Debug
 
@@ -185,7 +185,7 @@ impose -f in8.pdf -duplex -flip -grid 2x1 -nocropmark -width 450 -height 320 > o
 impose -f in8.pdf -duplex -weld 2 -grid 4x1 -nocropmark -width 900 -height 320 > out.pdf
 # Sheet 1: 1 2 5 6 | Sheet 2: 3 4 7 8
 
-# rotate the pages of the back sheets by 180 degrees
+# rotate every page by 180 degrees on top of -angle
 impose -f in8.pdf -duplex -turn 180 -grid 2x1 -nocropmark -width 450 -height 320 > out.pdf
 ```
 
@@ -240,6 +240,44 @@ impose -f in.pdf -pages 1-2 -grid 2x1 -unit cm -left 1 -top 1 -width 45 -height 
 impose -f in.pdf -grid 2x1 -verbosity 2 -width 450 -height 320 > out.pdf
 impose -f in.pdf -grid 2x1 -cpu cpu.prof -mem mem.prof -width 450 -height 320 > out.pdf
 ```
+
+## Desktop window
+
+`gui/` is a window for the same engine (Windows and Linux): a form with every setting, a live preview of the sheets
+and a button that writes the PDF.
+
+```
+make gui                  # bin/impose-gui, needs cgo (see the Makefile)
+make gui-windows          # bin/impose-gui.exe, cross build with mingw-w64
+bin/impose-gui [file.pdf]
+```
+
+- **Opening a PDF** can be done five ways: **Find...** (Ctrl+F), the **Open PDF...** button, the **Recent files**
+  dropdown (the last 10, kept between runs), pasting or typing a path in the entry below them and pressing Enter (quotes,
+  `file://` addresses and `~` are understood), or dropping the file on the window. A file given in the command line is
+  opened too. The page count and page size are shown once it is read; if a file can not be opened, the one that was
+  open stays.
+- **Find...** searches for a PDF by name. Type part of the name (several words must all be in it, capitals do not
+  matter) and the PDFs of the folder and the folders under it are listed as you type, newest first, with their folder,
+  size and date. Choose one and press **Open**, or press Enter to open the first. *In* is the folder to look in (type
+  it, pick it with the folder button, or use *Go to...* for Home, Documents, Downloads, Desktop and the folder of the
+  last file); *Also match folder names* lets `contracts 2024` find `Contracts/2024/final.pdf`. Hidden folders (starting
+  with a dot), `node_modules`, folders that can not be read and links to folders are skipped, and at most 500 results
+  are shown, so a short name in a big folder asks you to type more. The search runs in the background and restarts or
+  stops when you type, change folder or close the dialog.
+- Choose **Grid**, **Repeat** or **Booklet**; only the settings that apply to the mode are shown. **Unit** changes the
+  unit of all the lengths without changing their size.
+- The preview follows every change after a short pause. It draws one sheet at a time: the sheet, margins (red line),
+  page boxes with their page number and angle, the top of each page (orange edge) and the cropmarks. Duplex and booklet
+  sheets are marked *face* or *back*. Errors are shown where the preview would be, like `2 columns do not fit`.
+  When the grid is empty it tells how many pages fit and offers to use it.
+- **Same as:** shows the command line that gives the same PDF, **Copy command** puts it in the clipboard.
+- **Generate PDF...** writes the file in the background and can be cancelled. A cancelled or failed run leaves no file.
+- Settings are kept between runs, and named **presets** can be saved (disk icon), deleted (bin icon) or the form reset.
+  They live in `gui.json` in the user config folder (`~/.config/impose` on Linux, `%AppData%\impose` on Windows).
+
+The preview is drawn from the layout the program computes, it is not a picture of the PDF; it shows where every page
+goes, in which order and with which rotation.
 
 ## Errors
 
