@@ -95,7 +95,7 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 const epsilon = 1e-9
 
 func (bb *Boxes) EnoughWidth() bool {
-	consumedWidth := float64(bb.Col) * bb.Small.Width
+	consumedWidth := float64(bb.Col*bb.CloneX) * bb.Small.Width
 	consumedCloned := float64((bb.CloneX - 1)) * bb.ClonePadX
 	consumed := consumedWidth + consumedCloned
 	dif := bb.Big.AvailableWidth() - consumed
@@ -103,9 +103,9 @@ func (bb *Boxes) EnoughWidth() bool {
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	consumedWidth := float64(bb.Row) * bb.Small.Height
+	consumedHeight := float64(bb.Row*bb.CloneY) * bb.Small.Height
 	consumedCloned := float64((bb.CloneY - 1)) * bb.ClonePadY
-	consumed := consumedWidth + consumedCloned
+	consumed := consumedHeight + consumedCloned
 	dif := bb.Big.AvailableHeight() - consumed
 	return dif > 0.0 || math.Abs(dif) < epsilon
 }
@@ -132,37 +132,22 @@ func (bb *Boxes) ParseFlow(flow string) ([]int, error) {
 	return ff, nil
 }
 
+// GuessGrid counts how many pages fit along the width and the height of the sheet,
+// taking in account margins, clones and the pads between clones
 func (bb *Boxes) GuessGrid() (col, row int) {
-	var (
-		stopCountingCol          bool
-		xpos, ypos               = bb.Big.Left, bb.Big.Top
-		endx, endy, peakx, peaky float64
-	)
-
-	for {
-		if !stopCountingCol {
-			col++
+	fit := func(available, size, pad float64, clones int) int {
+		clones = max(clones, 1)
+		if size <= 0 {
+			return 0
 		}
-		endx = xpos + float64(bb.Small.Width)
-		peakx = bb.Big.AvailableWidth()
-		//	float64 endx > peakx
-		if math.Abs(endx-peakx) > epsilon {
-			stopCountingCol = true
-			xpos = bb.Big.Left
-			ypos += float64(bb.Small.Height)
-			endy = ypos + float64(bb.Small.Height)
-			peaky = bb.Big.AvailableHeight()
-			row++
-			if math.Abs(endy-peaky) > epsilon {
-				break
-			}
-		}
-		xpos += float64(bb.Small.Width)
+		n := math.Floor((available - float64(clones-1)*pad + epsilon) / (float64(clones) * size))
+		return max(int(n), 0)
 	}
+	col = fit(bb.Big.AvailableWidth(), bb.Small.Width, bb.ClonePadX, bb.CloneX)
+	row = fit(bb.Big.AvailableHeight(), bb.Small.Height, bb.ClonePadY, bb.CloneY)
 	return
 }
 
-// TODO cope with clone pads
 func (bb *Boxes) CreateCropmark(
 	markw, markh,
 	extw, exth,

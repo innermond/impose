@@ -58,6 +58,7 @@ func (bb *Boxes) Adjuster(turn float64, creepx []int, multiplier float64) func(i
 
 // proxy func
 func (bb *Boxes) Cycle(pxp []int, c chan int, showcropmarkPages []int) {
+	defer close(c)
 	bb.CycleAdjusted(pxp, c, nil, showcropmarkPages)
 }
 
@@ -130,7 +131,6 @@ grid:
 			xpos = bb.Big.Left
 		}
 	}
-	close(c)
 	return sheetNum
 }
 

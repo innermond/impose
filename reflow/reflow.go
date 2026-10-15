@@ -7,6 +7,8 @@ import (
 
 var (
 	ErrPositiveInt = errors.New("only positive int")
+	ErrFlow        = errors.New("flow needs at least one element and every element must be 1 or more")
+	ErrNoProgress  = errors.New("flow points outside of the pages, no page can be taken")
 )
 
 func On(in []int, as []int) (out []int, err error) {
@@ -36,6 +38,7 @@ flow:
 		// as was modified in order to cope with decrementing
 		// we refresh it
 		copy(as, as0)
+		consumed := len(in)
 		for i := 0; i < lenas; i++ {
 			// consumed, no more work here
 			if len(in) == 0 {
@@ -81,6 +84,36 @@ flow:
 				if as[x] >= inx && as[x] != 0 {
 					as[x]--
 				}
+			}
+		}
+		// a whole pass took nothing from in, it would loop forever
+		if len(in) == consumed {
+			return nil, ErrNoProgress
+		}
+	}
+	return
+}
+
+// Block applies a 1-based flow, that may repeat pages, to every block of max(flow) pages of in.
+// Pages missing from the last block are replaced by 0, an empty element.
+func Block(in, flow []int) (out []int, err error) {
+	if len(flow) == 0 {
+		return nil, ErrFlow
+	}
+	size := 0
+	for _, v := range flow {
+		if v < 1 {
+			return nil, ErrFlow
+		}
+		size = max(size, v)
+	}
+	for start := 0; start < len(in); start += size {
+		for _, v := range flow {
+			inx := start + v - 1
+			if inx < len(in) {
+				out = append(out, in[inx])
+			} else {
+				out = append(out, 0)
 			}
 		}
 	}

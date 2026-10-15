@@ -3,7 +3,6 @@ package impose
 import (
 	"log"
 	"math"
-	"slices"
 
 	"github.com/innermond/impose/duplex"
 	"github.com/innermond/impose/reflow"
@@ -44,7 +43,7 @@ func (bb *Boxes) Booklet(
 	multiplier := 100.0
 	// round to nearest
 	dx = math.Round(dx*multiplier) / multiplier
-	dxint := int(dx * multiplier)
+	dxint := int(math.Round(dx * multiplier))
 	// step every welded elements - face + back so step is 2*weld
 	for i := 0; i < len(pxp); i += 2 * weld {
 		creepx = append(creepx, i*dxint)
@@ -73,12 +72,10 @@ func (bb *Boxes) Booklet(
 	adjuster := bb.Adjuster(turn, creepx, multiplier)
 	counter := make(chan int)
 	go func() {
-		// cycle every page and draw it
-		n := bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
-		// put cropmarks for the last sheet
-		if showcropmarkPages == nil || slices.Contains(showcropmarkPages, n) {
-			bb.DrawCropmark()
-		}
+		// every sheet is drawn, cropmarks included, when the cycle returns
+		defer close(counter)
+		// cycle every page and draw it, the last sheet gets its cropmarks from the cycle itself
+		bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
 	}()
 	return counter
 }

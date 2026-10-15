@@ -68,3 +68,35 @@ func TestOn(t *testing.T) {
 		}
 	}
 }
+
+func TestBlock(t *testing.T) {
+	flow := []int{1, 1, 1, 2, 2, 2}
+	tt := []struct {
+		in, flow, want []int
+	}{
+		{[]int{1, 2}, flow, []int{1, 1, 1, 2, 2, 2}},
+		{[]int{1, 2, 3, 4}, flow, []int{1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4}},
+		{[]int{1, 2, 3}, flow, []int{1, 1, 1, 2, 2, 2, 3, 3, 3, 0, 0, 0}},
+		{[]int{1}, []int{1}, []int{1}},
+		{
+			[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+			[]int{1, 3, 5, 2, 4, 6},
+			[]int{1, 3, 5, 2, 4, 6, 7, 9, 11, 8, 10, 12},
+		},
+	}
+	for i, tc := range tt {
+		got, err := Block(tc.in, tc.flow)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%d) got %+v want %+v", i+1, got, tc.want)
+		}
+	}
+
+	for _, bad := range [][]int{nil, {}, {0}, {1, -1}} {
+		if _, err := Block([]int{1, 2}, bad); err != ErrFlow {
+			t.Errorf("flow %v: got %v want %v", bad, err, ErrFlow)
+		}
+	}
+}

@@ -2,7 +2,6 @@ package impose
 
 import (
 	"log"
-	"slices"
 
 	"github.com/innermond/impose/duplex"
 	"github.com/innermond/impose/reflow"
@@ -17,11 +16,7 @@ func (bb *Boxes) Impose(
 	is_duplex bool,
 	showcropmarkPages []int,
 ) chan int {
-	// proxy variables
-	var (
-		err error
-		np  = len(pxp)
-	)
+	var err error
 
 	// TODO duplex command or flag
 	if is_duplex {
@@ -33,14 +28,8 @@ func (bb *Boxes) Impose(
 
 	bb.Num = len(pxp)
 
-	if bb.Num%len(flow) != 0 {
-		log.Fatalf("%d is not divisible with %d", np, len(flow))
-	}
-	// booklet signature {last first second second-last}
-	// example: 4 pages are imposed like this 4-1-2-3
-	// 4-1 are a front page 2-3 are corespondent back page - the duplex
-	// reflow order pages for booklet
-	pxp, err = reflow.On(pxp, flow)
+	// flow is 1-based and can repeat pages, it is applied on every block of max(flow) pages
+	pxp, err = reflow.Block(pxp, flow)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,12 +39,10 @@ func (bb *Boxes) Impose(
 	adjuster := bb.Rotator(turn)
 	counter := make(chan int)
 	go func() {
-		// cycle every page and draw it
-		n := bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
-		// put cropmarks for the last sheet
-		if showcropmarkPages == nil && slices.Contains(showcropmarkPages, n) {
-			bb.DrawCropmark()
-		}
+		// every sheet is drawn, cropmarks included, when the cycle returns
+		defer close(counter)
+		// cycle every page and draw it, the last sheet gets its cropmarks from the cycle itself
+		bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
 	}()
 
 	return counter

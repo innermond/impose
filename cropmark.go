@@ -32,36 +32,20 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 	// used to skip creation of marks in between when booklet
 	// values 0 and 1 are because marks are created in pair
 	// create top line of cropmarks
-	for cx > 0 {
-		if bookletMode {
-			// draw only ends
-			//l := c.NewLine(float64(clonex)*colx*w+bleedx-0.5*lw+extw, 0, float64(clonex)*colx*w+bleedx-0.5*lw+extw, markh)
+	if bookletMode {
+		// draw only ends
+		for cx > 0 {
 			x := float64(cx-1)*cpx + float64(cx)*2*w - bleedx - 0.5*lw + extw
-			l := c.NewLine(x, 0, x, markw)
+			l := c.NewLine(x, 0, x, markh)
 			l.SetLineWidth(lw)
 			crosb.Draw(l)
-			//l = c.NewLine(float64(clonex+1)*colx*w-bleedx-0.5*lw+extw, 0, float64(clonex+1)*colx*w-bleedx-0.5*lw+extw, markh)
 			x = float64(cx-1)*cpx + float64(cx-1)*2*w + bleedx - 0.5*lw + extw
-			l = c.NewLine(x, 0, x, markw)
+			l = c.NewLine(x, 0, x, markh)
 			l.SetLineWidth(lw)
 			crosb.Draw(l)
 			cx--
-			continue
 		}
-		for x := 0; x < col; x++ {
-			// top line with space for cropmark
-			l := c.NewLine(float64(x)*w+bleedx-0.5*lw+extw, 0, float64(x)*w+bleedx-0.5*lw+extw, markh)
-			l.SetLineWidth(lw)
-			crosb.Draw(l)
-			l = c.NewLine(float64(x+1)*w-bleedx-0.5*lw+extw, 0, float64(x+1)*w-bleedx-0.5*lw+extw, markh)
-			l.SetLineWidth(lw)
-			crosb.Draw(l)
-		}
-	}
-	for cy > 0 {
-		if bookletMode {
-			//l := c.NewLine(0, float64(cloney)*rowy*h+bleedy+0.5*lw+exth, markw, float64(cloney)*rowy*h+bleedy+0.5*lw+exth)
-			//y := float64(cy-1)*cpy + float64(cy)*h - bleedy + 0.5*lw + exth
+		for cy > 0 {
 			y := float64(cy-1)*cpy + float64(cy)*h + exth - bleedy + 0.5*lw
 			l := c.NewLine(0, y, markw, y)
 			l.SetLineWidth(lw)
@@ -71,17 +55,34 @@ func (bk *CropMarkBlock) Create(bookletMode, angled bool) *creator.Block {
 			l.SetLineWidth(lw)
 			crosb.Draw(l)
 			cy--
-			continue
 		}
-		// create cropmarks left line
-		for y := 0; y < row; y++ {
-			// left line with space for cropmark
-			l := c.NewLine(0, float64(y)*h+bleedy+0.5*lw+exth, markw, float64(y)*h+bleedy+0.5*lw+exth)
-			l.SetLineWidth(lw)
-			crosb.Draw(l)
-			l = c.NewLine(0, float64(y+1)*h-bleedy+0.5*lw+exth, markw, float64(y+1)*h-bleedy+0.5*lw+exth)
-			l.SetLineWidth(lw)
-			crosb.Draw(l)
+	} else {
+		// col and row count cells over all clones, marks follow every clone with its pad
+		colsPer, rowsPer := col/cx, row/cy
+		for ci := 0; ci < cx; ci++ {
+			xoff := float64(ci) * (float64(colsPer)*w + cpx)
+			for x := 0; x < colsPer; x++ {
+				// top line with space for cropmark
+				l := c.NewLine(xoff+float64(x)*w+bleedx-0.5*lw+extw, 0, xoff+float64(x)*w+bleedx-0.5*lw+extw, markh)
+				l.SetLineWidth(lw)
+				crosb.Draw(l)
+				l = c.NewLine(xoff+float64(x+1)*w-bleedx-0.5*lw+extw, 0, xoff+float64(x+1)*w-bleedx-0.5*lw+extw, markh)
+				l.SetLineWidth(lw)
+				crosb.Draw(l)
+			}
+		}
+		for cj := 0; cj < cy; cj++ {
+			yoff := float64(cj) * (float64(rowsPer)*h + cpy)
+			// create cropmarks left line
+			for y := 0; y < rowsPer; y++ {
+				// left line with space for cropmark
+				l := c.NewLine(0, yoff+float64(y)*h+bleedy+0.5*lw+exth, markw, yoff+float64(y)*h+bleedy+0.5*lw+exth)
+				l.SetLineWidth(lw)
+				crosb.Draw(l)
+				l = c.NewLine(0, yoff+float64(y+1)*h-bleedy+0.5*lw+exth, markw, yoff+float64(y+1)*h-bleedy+0.5*lw+exth)
+				l.SetLineWidth(lw)
+				crosb.Draw(l)
+			}
 		}
 	}
 	// use the half of cropmarks block created and a rotated duplicate of it
