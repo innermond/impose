@@ -1,7 +1,7 @@
 package impose
 
 import (
-	"log"
+	"fmt"
 	"math"
 
 	"github.com/innermond/impose/duplex"
@@ -14,7 +14,8 @@ func (bb *Boxes) Booklet(
 	flip, reverse bool,
 	turn float64,
 	showcropmarkPages []int,
-) chan int {
+	progress func(int),
+) error {
 	// proxy variables
 	var (
 		err error
@@ -22,7 +23,7 @@ func (bb *Boxes) Booklet(
 	)
 
 	if np%4 != 0 {
-		log.Fatalf("%d is not divisible with 4", np)
+		return fmt.Errorf("%d is not divisible with 4", np)
 	}
 	// booklet signature {last first second second-last}
 	// example: 4 pages are imposed like this 4-1-2-3
@@ -30,7 +31,7 @@ func (bb *Boxes) Booklet(
 	// reflow order pages for booklet
 	pxp, err = reflow.On(pxp, []int{-1, 0, 1, -1})
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	// calculate creeping as ints with a multiplier because go do not have generics
 	// and our duplex.Reflow accepts []int not []float64
@@ -60,22 +61,17 @@ func (bb *Boxes) Booklet(
 	// calculate creep to coresponds with duplexed pxp
 	creepx, err = duplex.Reflow(creepx, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	bb.Num = len(pxp)
 
 	adjuster := bb.Adjuster(turn, creepx, multiplier)
-	counter := make(chan int)
-	go func() {
-		// every sheet is drawn, cropmarks included, when the cycle returns
-		defer close(counter)
-		// cycle every page and draw it, the last sheet gets its cropmarks from the cycle itself
-		bb.CycleAdjusted(pxp, counter, adjuster, showcropmarkPages)
-	}()
-	return counter
+	// cycle every page and draw it, the last sheet gets its cropmarks from the cycle itself
+	_, err = bb.CycleAdjusted(pxp, progress, adjuster, showcropmarkPages)
+	return err
 }

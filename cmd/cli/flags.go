@@ -336,11 +336,6 @@ func param() error {
 	if bookletMode && creep > bleedx {
 		creep = bleedx
 	}
-	// last edge is further inside mediabox by bleed amount
-	// adjust offsets otherwise they will be aware only by media edge
-	offx -= bleedx
-	offy -= bleedy
-
 	if !autopage {
 		autopadding = 0.0
 	}
@@ -372,15 +367,5 @@ func (mp *markPages) Set(v string) error {
 
 // unitFactor gives how many points a length unit has
 func unitFactor(u string) (float64, error) {
-	switch strings.ToLower(u) {
-	case "mm":
-		return creator.PPMM, nil
-	case "cm":
-		return 10 * creator.PPMM, nil
-	case "in", "inch":
-		return 72, nil
-	case "pt":
-		return 1, nil
-	}
-	return 0, fmt.Errorf("unknown unit %q, use mm, cm, in or pt", u)
+	return impose.UnitPoints(u)
 }

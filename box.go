@@ -1,8 +1,8 @@
 package impose
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"math"
 	"strings"
 
@@ -49,9 +49,29 @@ type Boxes struct {
 	Outline  bool
 
 	DeltaPos float64 // used to adjust / modify positions
+
+	// Ctx stops the imposition when done, nil never stops it.
+	Ctx context.Context
+	// Dry only computes positions: nothing is read from the pdf or drawn.
+	Dry bool
+	// Sheets is the number of sheets laid down, known when the cycle ends.
+	Sheets int
+	// OnPlace, if set, is called for every page placed on a sheet with the sheet number, from 0.
+	OnPlace func(sheet int, p Placement)
+}
+
+// ctxErr tells if the imposition has been stopped.
+func (bb *Boxes) ctxErr() error {
+	if bb.Ctx == nil {
+		return nil
+	}
+	return bb.Ctx.Err()
 }
 
 func (bb *Boxes) NewSheet() {
+	if bb.Dry {
+		return
+	}
 	sheet := model.NewPdfPage()
 	sheet.MediaBox = &model.PdfRectangle{Llx: 0, Lly: 0, Urx: bb.Big.Width, Ury: bb.Big.Height}
 	bb.Creator.AddPage(sheet)
@@ -119,7 +139,7 @@ func (bb *Boxes) ParseFlow(flow string) ([]int, error) {
 	if flow != "" {
 		ff, err = getFlowAsInts(strings.Split(flow, ","), bb.Col)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		if len(ff) != bb.Col {
 			return ff, fmt.Errorf("number of flow elements should be equal with %d", bb.Col)
@@ -155,18 +175,21 @@ func (bb *Boxes) CreateCropmark(
 	bookletMode bool,
 	angled bool,
 ) {
-	cropbk := &CropMarkBlock{bb.Small.Width, bb.Small.Height,
+	bb.Cropmark = bb.newCropMarkBlock(markw, markh, extw, exth, bleedx, bleedy).Create(bookletMode, angled)
+}
+
+func (bb *Boxes) newCropMarkBlock(markw, markh, extw, exth, bleedx, bleedy float64) *CropMarkBlock {
+	return &CropMarkBlock{bb.Small.Width, bb.Small.Height,
 		bleedx, bleedy,
 		bb.Col * bb.CloneX, bb.Row * bb.CloneY,
 		extw, exth,
 		markw, markh,
 		bb,
 	}
-	bb.Cropmark = cropbk.Create(bookletMode, angled)
 }
 
 func (bb *Boxes) DrawCropmark() {
-	if bb.Cropmark != nil {
+	if bb.Cropmark != nil && !bb.Dry {
 		bb.Creator.Draw(bb.Cropmark)
 	}
 

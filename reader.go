@@ -12,6 +12,8 @@ type PdfReader struct {
 	*model.PdfReader
 	pg     *model.PdfPage
 	dx, dy float64
+	// orig keeps the mediabox of pages as they are in the file, before any adjustment
+	orig map[int]model.PdfRectangle
 }
 
 func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
@@ -19,7 +21,12 @@ func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PdfReader{r, nil, dx, dy}, nil
+	return &PdfReader{r, nil, dx, dy, map[int]model.PdfRectangle{}}, nil
+}
+
+// SetBleed changes the bleed pages are expanded with, it works on pages got after it.
+func (r *PdfReader) SetBleed(dx, dy float64) {
+	r.dx, r.dy = dx, dy
 }
 
 // transformMediaBox calculates the new MediaBox coordinates after rotation
@@ -43,7 +50,7 @@ func transformMediaBox(llx, lly, urx, ury float64, rotation int64) (float64, flo
 	}
 }
 
-func (r *PdfReader) AdjustMediaBox() error {
+func (r *PdfReader) AdjustMediaBox(num int) error {
 	if r.pg == nil {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
@@ -80,10 +87,10 @@ func (r *PdfReader) AdjustMediaBox() error {
 	mbox.Urx = urx
 	mbox.Ury = ury
 
-	mediabox, err := r.pg.GetMediaBox()
 	// what?? we have at least a cropbox or a trimbox but not a mediabox???
-	if err != nil {
-		return err
+	mediabox, ok := r.orig[num]
+	if !ok {
+		return errors.New("No mediabox")
 	}
 
 	// do not exceed unadjusted real mediabox
@@ -91,7 +98,8 @@ func (r *PdfReader) AdjustMediaBox() error {
 	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
 		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
 		// use mediabox
-		mbox = mediabox
+		mb := mediabox
+		mbox = &mb
 	}
 	// adjust
 	r.pg.MediaBox = mbox
@@ -104,7 +112,15 @@ func (r *PdfReader) GetPage(num int) (*model.PdfPage, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = r.AdjustMediaBox()
+	// remember the mediabox of the file, to adjust it again with other bleed
+	if _, ok := r.orig[num]; !ok {
+		mb, err := r.pg.GetMediaBox()
+		if err != nil {
+			return nil, err
+		}
+		r.orig[num] = *mb
+	}
+	err = r.AdjustMediaBox(num)
 	if err != nil {
 		return nil, err
 	}

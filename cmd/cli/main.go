@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/innermond/impose"
-	"github.com/innermond/pange"
-	"github.com/unidoc/unipdf/v3/creator"
 )
 
 func main() {
@@ -50,207 +48,82 @@ func main() {
 		}
 	}()
 
-	// read first pdf page
 	if verbosity > 1 {
 		log.Printf("read pdf %q", fn)
 	}
-	pdf, err := impose.NewReader(f, bleedx, bleedy)
+	src, err := impose.OpenSource(f)
 	fatal(err)
 
-	// establish pages number
-	np, err := pdf.GetNumPages()
-	fatal(err)
+	opts := options()
 
-	// from 1 to last
-	if pages == "" {
-		pages = fmt.Sprintf("1-%d", np)
-	}
-	// get pages for imposition
-	sel := pange.Selection(pages)
-	// all pages as a slice of ints
-	pags, err := sel.Full()
-	fatal(err)
-	np = len(pags)
-
-	// grid
-	var (
-		col int = 1
-		row int = 1
-	)
-
-	col, row, err = parsex(grid)
-	fatal("grid: ", err)
-
-	// bookletMode need  certain grid and page order
-	if bookletMode {
-		if grid == "" {
-			grid = "2x1"
-			col, row = 2, 1
+	err = impose.Run(context.Background(), opts, src, os.Stdout, func(num int) {
+		if verbosity > 1 {
+			log.Println("Page ", num)
 		}
-	}
-
-	if verbosity > 0 {
-		log.Println("parsed parameters")
-	}
-
-	// assume all pages has the same dimensions as first one
-	page, err := pdf.GetPage(1)
-	fatal(err)
-	bbox, err := page.GetMediaBox()
-	fatal(err)
-	w := bbox.Urx - bbox.Llx
-	h := bbox.Ury - bbox.Lly
-
-	// cropmarks adds extra to dimensions
-	extw := offx + markw
-	exth := offy + markh
-
-	beSwitched := angle == 90.0 || angle == -90 || angle == 270 || angle == -270
-	clonex, cloney := 1, 1
-	clonex, cloney, err = parsex(clone)
-	fatal("clone: ", err)
-	if autopage {
-		clonepadxWidth := clonepadx * float64(clonex-1)
-		clonepadyHeight := clonepady * float64(cloney-1)
-		width = left + clonepadxWidth + float64(clonex)*float64(col)*w + right + 2*extw + 2*autopadding
-		height = top + clonepadyHeight + float64(cloney)*float64(row)*h + bottom + 2*exth + 2*autopadding
-		if beSwitched {
-			width = left + clonepadxWidth + float64(clonex)*float64(col)*h + right + 2*extw + 2*autopadding
-			height = top + clonepadyHeight + float64(cloney)*float64(row)*w + bottom + 2*exth + 2*autopadding
-		}
-	}
-
-	// create a sheet page
-	c := creator.New()
-	c.SetPageSize(creator.PageSize{width, height})
-
-	bigbox := &impose.BigBox{
-		Box: &impose.Box{
-			Width:  width,
-			Height: height,
-			Top:    top,
-			Right:  right,
-			Bottom: bottom,
-			Left:   left,
-		},
-	}
-	smallbox := &impose.SmallBox{Box: &impose.Box{Width: w, Height: h}, Angle: angle}
-	bb := &impose.Boxes{
-		Big:       bigbox,
-		Small:     smallbox,
-		Col:       col,
-		Row:       row,
-		CloneX:    clonex,
-		CloneY:    cloney,
-		ClonePadX: clonepadx,
-		ClonePadY: clonepady,
-		Num:       np,
-		Creator:   c,
-		Reader:    pdf,
-		Cropmark:  nil,
-		Outline:   outline,
-		DeltaPos:  0.0,
-	}
-
-	angled := false
-	if beSwitched {
-		bb.Small.Switch()
-		angled = true
-	}
-	// guess the grid, before centering that depends on a known grid
-	if grid == "" {
-		col, row := bb.GuessGrid()
-		if col < 1 || row < 1 {
-			log.Fatal("not even one page fits on the sheet")
-		}
-		log.Fatalf("suggested grid %dx%d", col, row)
-	}
-	// centering by changing margins
-	if centerx {
-		bb.AdjustMarginCenteringAlongWidth()
-	}
-	if centery {
-		bb.AdjustMarginCenteringAlongHeight()
-	}
-	// start to lay down pages
-	top, right, bottom, left = bb.Big.Top, bb.Big.Right, bb.Big.Bottom, bb.Big.Left
-	col, row = bb.Col, bb.Row
-	h, w = bb.Small.Height, bb.Small.Width
-
-	// check if media is enough
-	if !bb.EnoughWidth() {
-		log.Fatalf("%d columns do not fit", bb.Col)
-	}
-	if !bb.EnoughHeight() {
-		log.Fatalf("%d rows do not fit", bb.Row)
-	}
-
-	if verbosity > 0 {
-		log.Println("prepared boxes")
-	}
-
-	if showcropmark {
-		bb.CreateCropmark(
-			markw, markh,
-			extw, exth,
-			bleedx, bleedy,
-			bookletMode,
-			angled,
-		)
-	} else {
-		showcropmarkPages = nil
-	}
-
-	counter := make(chan int)
-	if repeat {
-		counter = bb.Repeat(pags, turn, showcropmarkPages)
-	} else if bookletMode {
-		counter = bb.Booklet(
-			pags,
-			creep,
-			flip, reverse, turn,
-			showcropmarkPages,
-		)
-	} else {
-		flowArr := []int{}
-		if len(flow) < 1 {
-			flowArr = []int{1}
-		} else {
-			flowStr := strings.Split(flow, ",")
-			for _, val := range flowStr {
-				inx, err := strconv.Atoi(strings.TrimSpace(val))
-				if err != nil {
-					log.Fatalf("flow: %v", err)
-				}
-				if inx < 1 {
-					log.Fatalf("flow: %d is not valid, pages are numbered from 1", inx)
-				}
-				flowArr = append(flowArr, inx)
-			}
-		}
-		counter = bb.Impose(
-			pags,
-			flowArr,
-			weld,
-			flip, reverse, turn, duplex,
-			showcropmarkPages,
-		)
-	}
-
-	for {
-		num, more := <-counter
-		if more {
-			if verbosity > 1 {
-				log.Println("Page ", num)
-			}
-		} else {
-			break
-		}
-	}
-
-	err = c.Write(os.Stdout)
+	})
 	fatal(err)
 
 	// profilng
 	mem()
+}
+
+// options gathers what the command line asked for
+func options() impose.Options {
+	o := impose.DefaultOptions()
+	o.Mode = impose.ModeGrid
+	if repeat {
+		o.Mode = impose.ModeRepeat
+	} else if bookletMode {
+		o.Mode = impose.ModeBooklet
+	}
+
+	// an empty grid is not known, see impose.Options
+	if grid != "" {
+		var err error
+		o.Col, o.Row, err = parsex(grid)
+		fatal("grid: ", err)
+	}
+	var err error
+	o.CloneX, o.CloneY, err = parsex(clone)
+	fatal("clone: ", err)
+	o.ClonePadX, o.ClonePadY = clonepadx, clonepady
+
+	o.Pages = pages
+	o.Flow = flowList()
+	o.Duplex, o.Flip, o.Reverse = duplex, flip, reverse
+	o.Weld, o.Turn = weld, turn
+	o.Creep = creep
+
+	o.Width, o.Height = width, height
+	o.Top, o.Right, o.Bottom, o.Left = top, right, bottom, left
+	o.Autopage, o.Autopadding = autopage, autopadding
+	o.CenterX, o.CenterY = centerx, centery
+	o.Angle = angle
+
+	o.Bleedx, o.Bleedy = bleedx, bleedy
+	o.Offx, o.Offy = offx, offy
+	o.Markw, o.Markh = markw, markh
+	o.NoCropmark = !showcropmark
+	o.CropmarkPages = showcropmarkPages
+	o.Outline = outline
+	return o
+}
+
+// flowList parses the flow, pages are numbered from 1
+func flowList() []int {
+	if len(flow) < 1 {
+		return []int{1}
+	}
+	flowArr := []int{}
+	for _, val := range strings.Split(flow, ",") {
+		inx, err := strconv.Atoi(strings.TrimSpace(val))
+		if err != nil {
+			log.Fatalf("flow: %v", err)
+		}
+		if inx < 1 {
+			log.Fatalf("flow: %d is not valid, pages are numbered from 1", inx)
+		}
+		flowArr = append(flowArr, inx)
+	}
+	return flowArr
 }

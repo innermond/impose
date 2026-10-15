@@ -1,7 +1,6 @@
 package impose
 
 import (
-	"log"
 	"math"
 	"slices"
 
@@ -57,12 +56,13 @@ func (bb *Boxes) Adjuster(turn float64, creepx []int, multiplier float64) func(i
 }
 
 // proxy func
-func (bb *Boxes) Cycle(pxp []int, c chan int, showcropmarkPages []int) {
-	defer close(c)
-	bb.CycleAdjusted(pxp, c, nil, showcropmarkPages)
+func (bb *Boxes) Cycle(pxp []int, progress func(int), showcropmarkPages []int) (int, error) {
+	return bb.CycleAdjusted(pxp, progress, nil, showcropmarkPages)
 }
 
-func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int), showcropmarkPages []int) int {
+// CycleAdjusted lays down pages sheet after sheet and gives back the number of the last sheet, from 0.
+// progress, if set, is called with the count of elements processed.
+func (bb *Boxes) CycleAdjusted(pxp []int, progress func(int), adjuster func(i int), showcropmarkPages []int) (int, error) {
 	var (
 		err        error
 		maxOnSheet = bb.Col * bb.Row
@@ -80,12 +80,17 @@ func (bb *Boxes) CycleAdjusted(pxp []int, c chan int, adjuster func(i int), show
 grid:
 	for {
 		for y := 0; y < bb.Row; y++ {
-			rowbk = creator.NewBlock(
-				bb.Big.Width,
-				bb.Small.Height,
-			)
+			if !bb.Dry {
+				rowbk = creator.NewBlock(
+					bb.Big.Width,
+					bb.Small.Height,
+				)
+			}
 			xpos = bb.Big.Left
 			for x := 0; x < bb.Col; x++ {
+				if err = bb.ctxErr(); err != nil {
+					return sheetNum, err
+				}
 				if i >= bb.Num {
 					bb.putRow(rowbk)
 					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
@@ -98,7 +103,6 @@ grid:
 					nextSheet = (maxOnSheet+i)%maxOnSheet == 0
 				}
 				if nextSheet {
-					log.Println("nextsheet", showcropmarkPages, sheetNum)
 					// put cropmarks on sheet
 					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
 						bb.DrawCropmark()
@@ -114,27 +118,59 @@ grid:
 					if adjuster != nil {
 						adjuster(i)
 					}
-					err = bb.BlockDrawPage(rowbk, pxp[i], xpos, ypos)
-					if err != nil {
-						log.Fatal(err)
+					if bb.OnPlace != nil {
+						for _, p := range bb.placements(pxp[i], xpos, ypos) {
+							bb.OnPlace(sheetNum, p)
+						}
+					}
+					if !bb.Dry {
+						err = bb.BlockDrawPage(rowbk, pxp[i], xpos, ypos)
+						if err != nil {
+							return sheetNum, err
+						}
 					}
 				}
 				// count elements processed
 				i++
-				// signal page drawing
-				c <- i
+				if progress != nil {
+					progress(i)
+				}
 				xpos += float64(w)
 			}
 			bb.putRow(rowbk)
-			log.Println(bb.ClonePadY)
 			ypos += float64(h)
 			xpos = bb.Big.Left
 		}
 	}
-	return sheetNum
+	bb.Sheets = sheetNum + 1
+	return sheetNum, nil
+}
+
+// placements gives where the page of the cell, with its clones, is on the sheet
+func (bb *Boxes) placements(num int, xpos, ypos float64) []Placement {
+	w, h := bb.Small.Width, bb.Small.Height
+	angle := bb.Small.Angle
+	// creeping moves the page along the axis of its rotation
+	dx, dy := bb.DeltaPos, 0.0
+	switch angle {
+	case -90, 270, 90, -270:
+		dx, dy = 0, -bb.DeltaPos
+	}
+	out := make([]Placement, 0, bb.CloneX*bb.CloneY)
+	for j := 0; j < bb.CloneY; j++ {
+		for i := 0; i < bb.CloneX; i++ {
+			xk := float64(i)*float64(bb.Col)*w + bb.ClonePadX*float64(i)
+			yk := float64(j)*float64(bb.Row)*h + bb.ClonePadY*float64(j)
+			out = append(out, Placement{Page: num, X: xpos + xk + dx, Y: ypos + yk + dy, W: w, H: h, Angle: angle})
+		}
+	}
+	return out
 }
 
 func (bb *Boxes) putRow(rowbk *creator.Block) {
+	if bb.Dry {
+		return
+	}
 	for j := 0; j < bb.CloneY; j++ {
 		for i := 0; i < bb.CloneX; i++ {
 			var xk = float64(i) * float64(bb.Col) * bb.Small.Width
@@ -146,7 +182,6 @@ func (bb *Boxes) putRow(rowbk *creator.Block) {
 			if j > 0 {
 				pady = float64(bb.ClonePadY) * float64(j)
 			}
-			log.Println("putRow", padx, pady)
 			xk += padx
 			yk += pady
 			rowbk.SetPos(xk, yk)
@@ -175,7 +210,6 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 
 	if angle != 0 {
 		bk.SetAngle(angle - bk.Angle())
-		log.Println(angle, num)
 	}
 	dd := bk.Width() - bk.Height()
 	if bk.Angle() != 0 {
@@ -200,7 +234,6 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	default:
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}
-	log.Println("dt", dt, "i", num)
 	xposx += dt
 	// layout page
 	bk.SetPos(xposx, yposy)
