@@ -203,7 +203,7 @@ impose repeat 2x2 -f in.pdf -pages 1-2 -clonepadx 5 -clonepady 5 -autopage > out
 
 ### `booklet`
 
-Imposes a folded booklet, default grid `2x1`. The page count (after `-pages`) must be a multiple of 4.
+Imposes a folded booklet, default grid `2x1`. The page count (after `-pages`) must be a multiple of 4, or add `-padblank` to fill the missing pages with blanks at the end.
 
 ```
 impose booklet -f in8.pdf -nocropmark -width 450 -height 320 > out.pdf
@@ -220,6 +220,11 @@ value of `-bleed`, so use both:
 
 ```
 impose booklet -f in8.pdf -creep 0.4 -bleed 2 -width 450 -height 320 > out.pdf
+```
+
+```
+impose booklet -f in6.pdf -padblank -width 450 -height 320 > out.pdf
+# 6 pages + 2 blank: Sheet 1: blank 1 | Sheet 2: 2 blank | Sheet 3: 6 3 | Sheet 4: 4 5
 ```
 
 Booklet accepts the common flags (`-flip`, `-reverse`, `-turn`, margins, cropmarks, ...).
@@ -252,6 +257,9 @@ make gui-windows          # bin/impose-gui.exe, cross build with mingw-w64
 bin/impose-gui [file.pdf]
 ```
 
+The window renders the pages with MuPDF (through go-fitz, AGPL like unipdf), linked statically, so the binary is
+bigger and needs nothing installed.
+
 - **Opening a PDF** can be done five ways: **Find...** (Ctrl+F), the **Open PDF...** button, the **Recent files**
   dropdown (the last 10, kept between runs), pasting or typing a path in the entry below them and pressing Enter (quotes,
   `file://` addresses and `~` are understood), or dropping the file on the window. A file given in the command line is
@@ -267,17 +275,25 @@ bin/impose-gui [file.pdf]
   stops when you type, change folder or close the dialog.
 - Choose **Grid**, **Repeat** or **Booklet**; only the settings that apply to the mode are shown. **Unit** changes the
   unit of all the lengths without changing their size.
+  In Booklet, **Add blank pages to reach a multiple of 4** (same as `-padblank`) fills the missing pages with blanks
+  at the end; without it a page count that is not a multiple of 4 is an error.
 - The preview follows every change after a short pause. It draws one sheet at a time: the sheet, margins (red line),
-  page boxes with their page number and angle, the top of each page (orange edge) and the cropmarks. Duplex and booklet
-  sheets are marked *face* or *back*. Errors are shown where the preview would be, like `2 columns do not fit`.
-  When the grid is empty it tells how many pages fit and offers to use it.
+  the pages as they are cut by the imposition (their trim box with the bleed), outlined in blue with their page number
+  and angle in a corner, the top of each page (orange edge) and the cropmarks. With a bleed, the bleed is shaded and
+  the trim edge is a dashed line. Pages are rendered in background, small, and sharper when you zoom in; a box stands
+  in until a page is ready. Untick **Pages** to see boxes only, for big or heavy files. Pages turned by an angle that
+  is not a multiple of 90 are shown as boxes.
+  Duplex and booklet sheets are marked *face* or *back*, and **See-through** shows the back of the sheet through the
+  paper, mirrored as it lies when the sheet is turned on its side or head to foot, with its pages outlined in green
+  dashes: the pages of a good imposition sit behind their pair. Errors are shown where the preview would be, like
+  `2 columns do not fit`. When the grid is empty it tells how many pages fit and offers to use it.
 - **Same as:** shows the command line that gives the same PDF, **Copy command** puts it in the clipboard.
 - **Generate PDF...** writes the file in the background and can be cancelled. A cancelled or failed run leaves no file.
 - Settings are kept between runs, and named **presets** can be saved (disk icon), deleted (bin icon) or the form reset.
   They live in `gui.json` in the user config folder (`~/.config/impose` on Linux, `%AppData%\impose` on Windows).
 
-The preview is drawn from the layout the program computes, it is not a picture of the PDF; it shows where every page
-goes, in which order and with which rotation.
+The preview is drawn from the layout the program computes, with a picture of every page put where the layout says;
+it shows where every page goes, in which order and with which rotation.
 
 ## Errors
 
@@ -285,7 +301,7 @@ goes, in which order and with which rotation.
 |---|---|
 | `pdf file required` | `-f` missing. |
 | `N columns / rows do not fit` | Grid (with clones and pads) is larger than the sheet minus margins. |
-| `N is not divisible with 4` | `booklet` page count is not a multiple of 4. |
+| `N is not divisible with 4` | `booklet` page count is not a multiple of 4; use `-padblank` to add blank pages. |
 | `flow: ...` | `-flow` has a value below 1 or a non-number. |
 | `suggested grid CxR` | `-grid` omitted (non-booklet): the program prints how many pages fit on the sheet (margins, clones and pads included) and exits. Run again with that `-grid`. |
 | `not even one page fits on the sheet` | `-grid` omitted and the page is larger than the sheet. |

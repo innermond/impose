@@ -87,6 +87,11 @@ func (u *ui) showError(err error) {
 	u.sheetChanged()
 }
 
+// paired tells the sheets come in pairs: a face then its back
+func (u *ui) paired() bool {
+	return u.s.Duplex && u.s.Mode == modeGrid || u.s.Mode == modeBooklet
+}
+
 // sheetChanged updates what tells which sheet is shown
 func (u *ui) sheetChanged() {
 	n := u.prev.sheets()
@@ -97,7 +102,7 @@ func (u *ui) sheetChanged() {
 		return
 	}
 	text := fmt.Sprintf("Sheet %d / %d", u.prev.sheet+1, n)
-	if u.s.Duplex && u.s.Mode == modeGrid || u.s.Mode == modeBooklet {
+	if u.paired() {
 		// sheets come in pairs: face then back
 		if u.prev.sheet%2 == 0 {
 			text += " face"
@@ -147,6 +152,12 @@ func (u *ui) replan() {
 }
 
 func (u *ui) showPlan(l *impose.Layout, err error) {
+	u.prev.pairs = u.paired()
+	if u.prev.pairs {
+		u.seeThrough.Enable()
+	} else {
+		u.seeThrough.Disable()
+	}
 	var gg *impose.GridGuessError
 	switch {
 	case errors.As(err, &gg):
@@ -245,6 +256,7 @@ func (u *ui) openFileNote(path, note string) {
 				u.file.Close()
 			}
 			u.file, u.src, u.srcPath = f, src, path
+			u.prev.thumbs.setSource(src)
 			u.store.Dir = filepath.Dir(path)
 			u.store.remember(path)
 			u.refreshRecent()

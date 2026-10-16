@@ -28,6 +28,8 @@ type Layout struct {
 	Width, Height float64
 	// Margins in use, after centering.
 	Top, Right, Bottom, Left float64
+	// Bleedx and Bleedy are inside every page, around its trim edge.
+	Bleedx, Bleedy float64
 	// Col and Row are the grid, CloneX and CloneY the clones of the grid.
 	Col, Row, CloneX, CloneY int
 	Sheets                   []Sheet

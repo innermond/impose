@@ -84,6 +84,9 @@ func (o Options) CLIArgs(file string) []string {
 	if o.Mode == ModeBooklet && o.Creep != 0 {
 		add("creep", mm(o.Creep))
 	}
+	if o.Mode == ModeBooklet && o.PadBlank {
+		add("padblank")
+	}
 
 	if o.Autopage {
 		add("autopage")

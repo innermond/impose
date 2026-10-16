@@ -57,6 +57,16 @@ func TestOptionsModes(t *testing.T) {
 	}
 
 	s = defaultSettings()
+	s.PadBlank = true
+	if o, _ = s.options(); o.PadBlank {
+		t.Error("blank pages are padded only in booklet")
+	}
+	s.Mode = modeBooklet
+	if o, _ = s.options(); !o.PadBlank {
+		t.Error("booklet should pad with blanks")
+	}
+
+	s = defaultSettings()
 	s.Flow, s.Duplex, s.Weld, s.Cols, s.Rows = "1, 1,2", true, "2", "4", "1"
 	s.MarkPages, s.Marks = "1,3", true
 	o, err = s.options()

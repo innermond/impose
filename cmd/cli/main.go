@@ -93,6 +93,7 @@ func options() impose.Options {
 	o.Duplex, o.Flip, o.Reverse = duplex, flip, reverse
 	o.Weld, o.Turn = weld, turn
 	o.Creep = creep
+	o.PadBlank = padblank
 
 	o.Width, o.Height = width, height
 	o.Top, o.Right, o.Bottom, o.Left = top, right, bottom, left

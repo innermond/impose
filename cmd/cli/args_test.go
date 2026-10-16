@@ -102,6 +102,7 @@ func TestCLIArgsRoundTrip(t *testing.T) {
 		o.Mode, o.CloneX, o.Turn, o.Pages, o.Autopage, o.NoCropmark = impose.ModeRepeat, 2, 90, "1-2", true, true
 	})
 	set("booklet", func(o *impose.Options) { o.Mode = impose.ModeBooklet })
+	set("bookletPad", func(o *impose.Options) { o.Mode, o.Pages, o.PadBlank = impose.ModeBooklet, "1-3", true })
 	set("booklet4x1", func(o *impose.Options) { o.Mode, o.Col, o.Row, o.Width = impose.ModeBooklet, 4, 1, 900*mm })
 	set("bookletCreep", func(o *impose.Options) {
 		o.Mode, o.Creep, o.Bleedx, o.Bleedy, o.Markh, o.Left, o.Top = impose.ModeBooklet, 0.5*mm, 1*mm, 1*mm, 12*mm, 20*mm, 20*mm

@@ -1,6 +1,7 @@
 package impose
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -54,6 +55,8 @@ type Options struct {
 	Weld int
 	// Turn rotates pages on back sheets, in degrees.
 	Turn float64
+	// PadBlank fills a booklet with blank pages at the end, up to a multiple of 4.
+	PadBlank bool
 
 	// cropmarks; Offx and Offy are measured from the trim edge, bleed is subtracted from them.
 	Bleedx, Bleedy float64
@@ -138,6 +141,35 @@ func (s *Source) pageSize(bleedx, bleedy float64) (w, h float64, err error) {
 		return 0, 0, err
 	}
 	return bbox.Urx - bbox.Llx, bbox.Ury - bbox.Lly, nil
+}
+
+// PagePDF makes a pdf of one page of the file, num counts from 1, cut as the imposition cuts it:
+// its trim or crop box expanded with bleed. It is fit for rendering a preview of the page.
+func (s *Source) PagePDF(num int, bleedx, bleedy float64) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if num < 1 || num > s.NumPages {
+		return nil, fmt.Errorf("page %d out of 1-%d", num, s.NumPages)
+	}
+	s.rd.SetBleed(bleedx, bleedy)
+	bk, err := s.rd.BlockFromPage(num)
+	if err != nil {
+		return nil, err
+	}
+	// the page is upright, as its size is measured
+	bk.SetAngle(0)
+	bk.SetPos(0, 0)
+	c := creator.New()
+	c.SetPageSize(creator.PageSize{bk.Width(), bk.Height()})
+	c.NewPage()
+	if err := c.Draw(bk); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := c.Write(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // job is an imposition ready to run
@@ -288,7 +320,7 @@ func (j *job) cycle(progress func(int)) error {
 	case ModeRepeat:
 		return bb.Repeat(j.pags, o.Turn, j.marks, progress)
 	case ModeBooklet:
-		return bb.Booklet(j.pags, o.Creep, o.Flip, o.Reverse, o.Turn, j.marks, progress)
+		return bb.Booklet(j.pags, o.Creep, o.Flip, o.Reverse, o.PadBlank, o.Turn, j.marks, progress)
 	}
 	flow := o.Flow
 	if len(flow) == 0 {
@@ -353,6 +385,7 @@ func Plan(ctx context.Context, o Options, src *Source) (*Layout, error) {
 	return &Layout{
 		Width: big.Width, Height: big.Height,
 		Top: big.Top, Right: big.Right, Bottom: big.Bottom, Left: big.Left,
+		Bleedx: o.Bleedx, Bleedy: o.Bleedy,
 		Col: j.bb.Col, Row: j.bb.Row, CloneX: j.bb.CloneX, CloneY: j.bb.CloneY,
 		Sheets: sheets,
 	}, nil

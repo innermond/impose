@@ -37,6 +37,7 @@ var (
 	duplex                 bool
 	flip                   bool
 	reverse                bool
+	padblank               bool
 	turn                   float64
 	weld                   int
 	angle                  float64
@@ -104,11 +105,12 @@ var (
 		"outline":       true,
 	}
 	duplexFlags = map[string]bool{
-		"flip":    true,
-		"turn":    true,
-		"reverse": true,
-		"duplex":  true,
-		"weld":    true,
+		"flip":     true,
+		"turn":     true,
+		"reverse":  true,
+		"padblank": true,
+		"duplex":   true,
+		"weld":     true,
 	}
 	debugFlags = map[string]bool{
 		"mem": true,
@@ -189,6 +191,7 @@ func commonFlags() map[string]bool {
 func initFlagDuplex(flagset *flag.FlagSet) {
 	flagset.Float64Var(&turn, "turn", 0.0, "rotate page with specified angle")
 	flagset.BoolVar(&flip, "flip", false, "flip grouped pages")
+	flagset.BoolVar(&padblank, "padblank", false, "booklet: fill with blank pages up to a multiple of 4")
 	flagset.BoolVar(&reverse, "reverse", false, "reverse order of pages")
 	flagset.StringVar(&flow, "flow", "", "order and repetition of pages inside every block of max(flow) pages, numbered from 1. ex: 1,1,1,2,2,2")
 	flagset.IntVar(&weld, "weld", 1, "length of pages group")

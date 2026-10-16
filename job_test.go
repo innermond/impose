@@ -204,6 +204,48 @@ func TestPlanErrors(t *testing.T) {
 	}
 }
 
+func TestPlanBookletPadBlank(t *testing.T) {
+	mm := creator.PPMM
+	o := DefaultOptions()
+	o.Width, o.Height = 450*mm, 320*mm
+	o.NoCropmark = true
+	o.Mode = ModeBooklet
+
+	tt := []struct {
+		pages int
+		sel   string
+		want  string
+	}{
+		{3, "1-3", "[[1] [2 3]]"},
+		{5, "1-5", "[[1] [2] [3] [4 5]]"},
+		{4, "1-4", "[[1 4] [2 3]]"},
+	}
+	for _, tc := range tt {
+		src := numbered(t, tc.pages)
+		o.Pages, o.PadBlank = tc.sel, false
+		if tc.pages%4 != 0 {
+			if _, err := Plan(context.Background(), o, src); err == nil {
+				t.Errorf("%d pages without padding should fail", tc.pages)
+			}
+		}
+		o.PadBlank = true
+		l, err := Plan(context.Background(), o, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fmt.Sprint(planPages(l)); got != tc.want {
+			t.Errorf("%d pages: plan %v, want %v", tc.pages, got, tc.want)
+		}
+		var buf bytes.Buffer
+		if err := Run(context.Background(), o, src, &buf, nil); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := fmt.Sprint(sheetsPages(t, buf.Bytes())), fmt.Sprint(planPages(l)); got != want {
+			t.Errorf("%d pages: pdf has %v, plan %v", tc.pages, got, want)
+		}
+	}
+}
+
 func TestPlanCancel(t *testing.T) {
 	src := numbered(t, 4)
 	o := DefaultOptions()
@@ -324,5 +366,82 @@ func TestSourceSharedByPlanAndRun(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+// trimmed makes a pdf of n pages of 200x300 with a trim box 10 points inside the media box.
+func trimmed(t *testing.T, n int) *Source {
+	t.Helper()
+	c := creator.New()
+	for i := 1; i <= n; i++ {
+		page := model.NewPdfPage()
+		page.MediaBox = &model.PdfRectangle{Urx: 200, Ury: 300}
+		page.TrimBox = &model.PdfRectangle{Llx: 10, Lly: 10, Urx: 190, Ury: 290}
+		if err := c.AddPage(page); err != nil {
+			t.Fatal(err)
+		}
+		p := c.NewParagraph(fmt.Sprintf("P%d", i))
+		p.SetPos(50, 50)
+		if err := c.Draw(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var buf bytes.Buffer
+	if err := c.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	src, err := OpenSource(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return src
+}
+
+func TestSourcePagePDF(t *testing.T) {
+	src := trimmed(t, 3)
+	for _, bleed := range []float64{0, 5} {
+		want := 180 + 2*bleed
+		pdf, err := src.PagePDF(2, bleed, bleed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		one, err := OpenSource(bytes.NewReader(pdf))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if one.NumPages != 1 {
+			t.Fatalf("bleed %v: %d pages", bleed, one.NumPages)
+		}
+		w, h, err := one.PageSize(0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if w != want || h != want+100 {
+			t.Errorf("bleed %v: page %vx%v, want %vx%v", bleed, w, h, want, want+100)
+		}
+		if got := sheetsPages(t, pdf); len(got) != 1 || !slices.Equal(got[0], []int{2}) {
+			t.Errorf("bleed %v: pages %v, want [[2]]", bleed, got)
+		}
+	}
+	// the bleed of the preview does not stay with the source
+	w, _, err := src.PageSize(0, 0)
+	if err != nil || w != 180 {
+		t.Errorf("page width %v after preview, want 180 (%v)", w, err)
+	}
+	if _, err := src.PagePDF(4, 0, 0); err == nil {
+		t.Error("no error for a page out of the file")
+	}
+}
+
+func TestPlanHasBleed(t *testing.T) {
+	o := DefaultOptions()
+	o.Col, o.Row = 1, 1
+	o.Bleedx, o.Bleedy = 3, 4
+	l, err := Plan(context.Background(), o, trimmed(t, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.Bleedx != 3 || l.Bleedy != 4 {
+		t.Errorf("bleed %v %v, want 3 4", l.Bleedx, l.Bleedy)
 	}
 }

@@ -3,6 +3,7 @@ package impose
 import (
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/innermond/impose/duplex"
 	"github.com/innermond/impose/reflow"
@@ -11,18 +12,22 @@ import (
 func (bb *Boxes) Booklet(
 	pxp []int,
 	creep float64,
-	flip, reverse bool,
+	flip, reverse, padBlank bool,
 	turn float64,
 	showcropmarkPages []int,
 	progress func(int),
 ) error {
 	// proxy variables
-	var (
-		err error
-		np  = len(pxp)
-	)
+	var err error
 
-	if np%4 != 0 {
+	// missing pages are left blank, 0 is an empty element
+	if padBlank {
+		pxp = slices.Clone(pxp)
+		for len(pxp)%4 != 0 {
+			pxp = append(pxp, 0)
+		}
+	}
+	if np := len(pxp); np%4 != 0 {
 		return fmt.Errorf("%d is not divisible with 4", np)
 	}
 	// booklet signature {last first second second-last}

@@ -45,6 +45,7 @@ type ui struct {
 	// recentPaths are the files the options of recent stand for
 	recentPaths []string
 	prev        *preview
+	seeThrough  *widget.Select
 	sheetLabel  *widget.Label
 	prevBtn     *widget.Button
 	nextBtn     *widget.Button
@@ -250,8 +251,32 @@ func (u *ui) build() {
 		u.prev.setScale(float64(pct) / 100)
 	})
 	zoom.SetSelected("Fit")
+	u.prev.showThumbs = !u.store.HideThumbs
+	pages := widget.NewCheck("Pages", func(on bool) {
+		u.prev.showThumbs = on
+		u.prev.Refresh()
+		if u.store.HideThumbs == on {
+			u.store.HideThumbs = !on
+			u.saveStore()
+		}
+	})
+	pages.SetChecked(!u.store.HideThumbs)
+	sees := []string{"No see-through", "See-through, side turn", "See-through, head turn"}
+	u.seeThrough = widget.NewSelect(sees, func(s string) {
+		for i, v := range sees {
+			if v == s && u.store.SeeThrough != i {
+				u.store.SeeThrough = i
+				u.saveStore()
+			}
+		}
+		u.prev.see = u.store.SeeThrough
+		u.prev.Refresh()
+	})
+	u.seeThrough.SetSelectedIndex(clamp(u.store.SeeThrough, seeNone, seeHead))
+	u.seeThrough.Disable()
 	// the label changes its text, so it has a place of its own
-	bar := container.NewBorder(nil, nil, container.NewHBox(u.prevBtn, container.NewGridWrap(fyne.NewSize(170, 36), u.sheetLabel), u.nextBtn), zoom)
+	bar := container.NewBorder(nil, nil, container.NewHBox(u.prevBtn, container.NewGridWrap(fyne.NewSize(170, 36), u.sheetLabel), u.nextBtn),
+		container.NewHBox(pages, u.seeThrough, zoom))
 	u.status = widget.NewLabel("")
 	u.status.Wrapping = fyne.TextWrapWord
 	u.useGuess = widget.NewButton("", func() {
@@ -329,6 +354,7 @@ func (u *ui) applyMode() {
 			item("Creep", u.cached("creep", &s.Creep, "0, up to the bleed")),
 			item("Back sheets", container.NewHBox(u.cachedCheck("flip", "Flip", &s.Flip), u.cachedCheck("reverse", "Reverse", &s.Reverse))),
 			item("Turn face sheets", u.cached("turn", &s.Turn, "degrees, ex: 180")),
+			item("", u.cachedCheck("padblank", "Add blank pages to reach a multiple of 4", &s.PadBlank)),
 		}
 		title["grid"], title["flip"] = "Grid & clones", "Booklet"
 	default:

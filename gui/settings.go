@@ -36,6 +36,7 @@ type Settings struct {
 	CloneX, CloneY, PadX, PadY string
 	Pages, Flow                string
 	Duplex, Flip, Reverse      bool
+	PadBlank                   bool
 	Weld, Turn, Creep          string
 	Marks                      bool
 	Bleed, Offset, MarkSize    string
@@ -214,6 +215,7 @@ func (s Settings) options() (impose.Options, error) {
 	// turn is shown only in booklet, in the other modes it is the same as the angle
 	if o.Mode == impose.ModeBooklet {
 		o.Turn = p.float("turn", s.Turn)
+		o.PadBlank = s.PadBlank
 	}
 
 	bleed := p.length("bleed", s.Bleed)
@@ -262,6 +264,10 @@ type store struct {
 	SearchDir string
 	// Recent are the pdf files opened, the last one first.
 	Recent []string
+	// HideThumbs shows boxes in place of the pages in the preview.
+	HideThumbs bool
+	// SeeThrough is how the back of the sheet shows through it in the preview: seeNone, seeSide or seeHead.
+	SeeThrough int
 }
 
 // maxRecent is how many files are remembered.

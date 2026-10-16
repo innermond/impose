@@ -212,6 +212,10 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 		bk.SetAngle(angle - bk.Angle())
 	}
 	dd := bk.Width() - bk.Height()
+	// a page turned by a half turn keeps its width and height, only quarter turns need centering
+	if math.Mod(bk.Angle(), 180) == 0 {
+		dd = 0
+	}
 	if bk.Angle() != 0 {
 		xposx -= 0.5*dd + dt
 		yposy += 0.5*dd - dt

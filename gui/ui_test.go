@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
@@ -179,6 +181,18 @@ func TestModes(t *testing.T) {
 	if u.acc.Items[3].Title != "Booklet" {
 		t.Errorf("sections %q", u.acc.Items[3].Title)
 	}
+	// 6 pages do not make a booklet, until blank pages are added
+	typeIn(t, u, "pages", "1-6")
+	waitFor(t, "not divisible", func() bool { return u.layout == nil && strings.Contains(u.status.Text, "divisible") })
+	chk, ok := u.cache["padblank"].(*widget.Check)
+	if !ok {
+		t.Fatal("no padblank check")
+	}
+	chk.SetChecked(true)
+	waitFor(t, "padded", func() bool { return u.layout != nil && len(u.layout.Sheets) == 4 })
+	chk.SetChecked(false)
+	typeIn(t, u, "pages", "")
+	waitFor(t, "all pages", func() bool { return u.layout != nil && len(u.layout.Sheets) == 4 })
 	typeIn(t, u, "creep", "0.4")
 	typeIn(t, u, "turn", "180")
 	waitFor(t, "turned faces", func() bool {
@@ -654,4 +668,129 @@ func TestQuickFolders(t *testing.T) {
 			t.Errorf("gone folder offered: %v", f)
 		}
 	}
+}
+
+// ---- pictures of the pages
+
+// previewObjects gives what the preview draws: pictures, those seen through the paper, and lines of a colour
+func previewObjects(u *ui, c color.Color) (imgs, through int, lines []*canvas.Line) {
+	for _, o := range test.WidgetRenderer(u.prev).Objects() {
+		switch o := o.(type) {
+		case *canvas.Image:
+			if o.Translucency > 0 {
+				through++
+			} else {
+				imgs++
+			}
+		case *canvas.Line:
+			if o.StrokeColor == c {
+				lines = append(lines, o)
+			}
+		}
+	}
+	return
+}
+
+func TestPreviewShowsPages(t *testing.T) {
+	u := newTestUI(t)
+	path := filepath.Join(t.TempDir(), "trimmed.pdf")
+	if err := os.WriteFile(path, trimmedPDF(t, 8), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	u.openFile(path)
+	waitFor(t, "the pdf", func() bool { return u.src != nil })
+	u.modes.SetSelected(modeBooklet)
+	u.s.Bleed, u.s.CenterX, u.s.CenterY = "3", true, true
+	u.pullAll()
+	u.changed()
+	waitFor(t, "the booklet", func() bool { return u.layout != nil && len(u.layout.Sheets) == 4 })
+	waitFor(t, "the pictures", func() bool {
+		imgs, _, _ := previewObjects(u, nil)
+		return imgs == 2
+	})
+	shot(t, u, "pages")
+
+	// a booklet has a back: it shows through when asked
+	if u.seeThrough.Disabled() {
+		t.Fatal("see-through is off for a booklet")
+	}
+	u.seeThrough.SetSelectedIndex(seeSide)
+	waitFor(t, "the back", func() bool {
+		_, through, back := previewObjects(u, backColor)
+		return through == 2 && len(back) > 0
+	})
+	shot(t, u, "see-through")
+	if u.store.SeeThrough != seeSide {
+		t.Errorf("see-through kept as %d", u.store.SeeThrough)
+	}
+
+	// boxes in place of the pictures
+	u.seeThrough.SetSelectedIndex(seeNone)
+	check := findCheck(t, u, "Pages")
+	check.SetChecked(false)
+	if imgs, through, _ := previewObjects(u, nil); imgs+through != 0 {
+		t.Errorf("%d pictures without pages", imgs+through)
+	}
+	if !u.store.HideThumbs {
+		t.Error("hidden pages not kept")
+	}
+
+	// a grid without duplex has no back
+	u.modes.SetSelected(modeGrid)
+	u.changed()
+	waitFor(t, "the grid", func() bool { return u.seeThrough.Disabled() })
+}
+
+func findCheck(t *testing.T, u *ui, text string) *widget.Check {
+	t.Helper()
+	var found *widget.Check
+	var walk func(o fyne.CanvasObject)
+	walk = func(o fyne.CanvasObject) {
+		if c, ok := o.(*widget.Check); ok && c.Text == text {
+			found = c
+		}
+		if c, ok := o.(*fyne.Container); ok {
+			for _, o := range c.Objects {
+				walk(o)
+			}
+		}
+		if w, ok := o.(fyne.Widget); ok && found == nil {
+			for _, o := range test.WidgetRenderer(w).Objects() {
+				walk(o)
+			}
+		}
+	}
+	walk(u.win.Content())
+	if found == nil {
+		t.Fatalf("no check %q", text)
+	}
+	return found
+}
+
+func TestPreviewTrimFollowsTheTurn(t *testing.T) {
+	u := newTestUI(t)
+	openAndWait(t, u, 2)
+	u.s.Bleed, u.s.Cols, u.s.Rows, u.s.Angle = "5", "1", "1", "90"
+	u.pullAll()
+	u.changed()
+	waitFor(t, "the layout", func() bool { return u.layout != nil && u.layout.Bleedx > 0 })
+	_, _, trim := previewObjects(u, trimColor)
+	if len(trim) == 0 {
+		t.Fatal("no trim edge")
+	}
+	box := fyne.NewPos(trim[0].Position1.X, trim[0].Position1.Y)
+	end := box
+	for _, ln := range trim {
+		for _, p := range []fyne.Position{ln.Position1, ln.Position2} {
+			box = fyne.NewPos(min(box.X, p.X), min(box.Y, p.Y))
+			end = fyne.NewPos(max(end.X, p.X), max(end.Y, p.Y))
+		}
+	}
+	// the page of 200x300 lies turned: the trim edge is 5mm inside 300x200 points
+	b := float32(10 * impose.PointsPerMM)
+	w, h := end.X-box.X, end.Y-box.Y
+	if r, want := w/h, (300-b)/(200-b); r < want*0.99 || r > want*1.01 {
+		t.Errorf("trim edge %vx%v, ratio %v want %v", w, h, r, want)
+	}
+	shot(t, u, "trim90")
 }
