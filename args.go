@@ -84,7 +84,7 @@ func (o Options) CLIArgs(file string) []string {
 	if o.Mode == ModeBooklet && o.Creep != 0 {
 		add("creep", mm(o.Creep))
 	}
-	if o.Mode == ModeBooklet && o.PadBlank {
+	if o.PadBlank && (o.Mode == ModeBooklet || o.Mode == ModeGrid && o.Duplex) {
 		add("padblank")
 	}
 

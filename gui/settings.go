@@ -208,6 +208,7 @@ func (s Settings) options() (impose.Options, error) {
 		o.Flow = p.ints("flow", s.Flow)
 		o.Duplex = s.Duplex
 		o.Weld = p.count("weld", s.Weld, 1)
+		o.PadBlank = s.PadBlank
 	}
 	if o.Mode != impose.ModeRepeat {
 		o.Flip, o.Reverse = s.Flip, s.Reverse

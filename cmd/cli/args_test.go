@@ -93,7 +93,7 @@ func TestCLIArgsRoundTrip(t *testing.T) {
 		o.Col, o.Row, o.Duplex, o.Flip, o.Reverse, o.Turn = 2, 1, true, true, true, 180
 	})
 	set("duplexweld", func(o *impose.Options) {
-		o.Col, o.Row, o.Duplex, o.Weld, o.Width = 4, 1, true, 2, 900*mm
+		o.Col, o.Row, o.Duplex, o.Weld, o.Width, o.PadBlank = 4, 1, true, 2, 900*mm, true
 	})
 	set("repeat", func(o *impose.Options) {
 		o.Mode, o.CloneX, o.CloneY, o.ClonePadX, o.ClonePadY, o.Pages, o.Autopage = impose.ModeRepeat, 2, 2, 5*mm, 5*mm, "1-2", true
@@ -103,7 +103,9 @@ func TestCLIArgsRoundTrip(t *testing.T) {
 	})
 	set("booklet", func(o *impose.Options) { o.Mode = impose.ModeBooklet })
 	set("bookletPad", func(o *impose.Options) { o.Mode, o.Pages, o.PadBlank = impose.ModeBooklet, "1-3", true })
-	set("booklet4x1", func(o *impose.Options) { o.Mode, o.Col, o.Row, o.Width = impose.ModeBooklet, 4, 1, 900*mm })
+	set("booklet4x1", func(o *impose.Options) {
+		o.Mode, o.Col, o.Row, o.Width, o.PadBlank = impose.ModeBooklet, 4, 1, 900*mm, true
+	})
 	set("bookletCreep", func(o *impose.Options) {
 		o.Mode, o.Creep, o.Bleedx, o.Bleedy, o.Markh, o.Left, o.Top = impose.ModeBooklet, 0.5*mm, 1*mm, 1*mm, 12*mm, 20*mm, 20*mm
 	})

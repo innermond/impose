@@ -64,11 +64,11 @@ func (bb *Boxes) Booklet(
 	// when duplex is turn-ed (crossing printing direction - short edge in most cases)
 	// duplex pages must be rotated 180
 	// calculate creep to coresponds with duplexed pxp
-	creepx, err = duplex.Reflow(creepx, weld, bb.Col, bb.Row, reverse, flip)
+	creepx, err = duplex.Reflow(creepx, weld, bb.Col, bb.Row, reverse, flip, padBlank)
 	if err != nil {
 		return err
 	}
-	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
+	pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip, padBlank)
 	if err != nil {
 		return err
 	}

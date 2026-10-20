@@ -49,13 +49,14 @@ type Options struct {
 	// Pages is a selection like 1-4,7, empty means all the pages.
 	Pages string
 	// Flow is 1-based, it can repeat pages, empty means as they are.
+	// It wins over the page count: pages it asks for and the source lacks are blanks.
 	Flow                  []int
 	Duplex, Flip, Reverse bool
 	// Weld is the length of a group of pages in duplex, 0 means 1.
 	Weld int
 	// Turn rotates pages on back sheets, in degrees.
 	Turn float64
-	// PadBlank fills a booklet with blank pages at the end, up to a multiple of 4.
+	// PadBlank fills with blank pages at the end: a booklet up to a multiple of 4, a duplex grid up to an even number of sheets.
 	PadBlank bool
 
 	// cropmarks; Offx and Offy are measured from the trim edge, bleed is subtracted from them.
@@ -326,7 +327,9 @@ func (j *job) cycle(progress func(int)) error {
 	if len(flow) == 0 {
 		flow = []int{1}
 	}
-	return bb.Impose(j.pags, flow, max(o.Weld, 1), o.Flip, o.Reverse, o.Turn, o.Duplex, j.marks, progress)
+	// an explicit flow defines the layout, the pages it lacks are blanks
+	pad := o.PadBlank || len(o.Flow) > 0
+	return bb.Impose(j.pags, flow, max(o.Weld, 1), o.Flip, o.Reverse, o.Turn, o.Duplex, pad, j.marks, progress)
 }
 
 // Run imposes the pages of src and writes the pdf to out. progress, if set, is called with the

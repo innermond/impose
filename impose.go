@@ -12,25 +12,25 @@ func (bb *Boxes) Impose(
 	flip, reverse bool,
 	turn float64,
 	is_duplex bool,
+	padBlank bool,
 	showcropmarkPages []int,
 	progress func(int),
 ) error {
 	var err error
 
-	// TODO duplex command or flag
-	if is_duplex {
-		pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip)
-		if err != nil {
-			return err
-		}
-	}
-
-	bb.Num = len(pxp)
-
-	// flow is 1-based and can repeat pages, it is applied on every block of max(flow) pages
+	// flow is 1-based, it can repeat pages, it is applied on every block of max(flow) pages
+	// it comes first because it numbers the source pages, duplex orders what the flow produced
 	pxp, err = reflow.Block(pxp, flow)
 	if err != nil {
 		return err
+	}
+
+	// TODO duplex command or flag
+	if is_duplex {
+		pxp, err = duplex.Reflow(pxp, weld, bb.Col, bb.Row, reverse, flip, padBlank)
+		if err != nil {
+			return err
+		}
 	}
 
 	bb.Num = len(pxp)

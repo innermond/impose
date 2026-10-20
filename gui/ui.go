@@ -367,6 +367,7 @@ func (u *ui) applyMode() {
 		duplex := u.cachedCheck("duplex", "Duplex", &s.Duplex)
 		flip.Items = []*widget.FormItem{
 			item("", duplex),
+			item("", u.cachedCheck("padblank", "Add blank pages to fill the sheets", &s.PadBlank)),
 			item("Pages kept together", weld),
 			item("Back sheets", container.NewHBox(u.cachedCheck("flip", "Flip", &s.Flip), u.cachedCheck("reverse", "Reverse", &s.Reverse))),
 		}

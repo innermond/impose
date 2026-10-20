@@ -2,7 +2,7 @@ package duplex
 
 import "fmt"
 
-func Reflow(in []int, weld, col, row int, reversed, flip bool) (out []int, err error) {
+func Reflow(in []int, weld, col, row int, reversed, flip, pad bool) (out []int, err error) {
 	// weld is length for elements grouping
 	// assume every 2th group elements is subject duplex
 
@@ -11,9 +11,13 @@ func Reflow(in []int, weld, col, row int, reversed, flip bool) (out []int, err e
 
 	// pad with zeroes (representing empty elements) to balance in elements
 	lenin := len(in)
+	if !pad && (peak == 0 || lenin%(2*peak) != 0) {
+		err = fmt.Errorf("%d pages do not fill an even number of sheets (%d per sheet); add blank pages", lenin, peak)
+		return
+	}
 	len0 := lenin % peak
 	if len0 != 0 {
-    // difference to fill a page
+		// difference to fill a page
 		len0 = peak - len0
 	}
 

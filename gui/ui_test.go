@@ -691,6 +691,24 @@ func previewObjects(u *ui, c color.Color) (imgs, through int, lines []*canvas.Li
 	return
 }
 
+// a page the flow repeats is drawn in every cell it takes, not in the last one only
+func TestPreviewShowsRepeatedPage(t *testing.T) {
+	u := newTestUI(t)
+	path := filepath.Join(t.TempDir(), "trimmed.pdf")
+	if err := os.WriteFile(path, trimmedPDF(t, 2), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	u.openFile(path)
+	waitFor(t, "the pdf", func() bool { return u.src != nil })
+	u.s.Cols, u.s.Rows, u.s.Flow = "2", "1", "1,1"
+	u.pullAll()
+	u.changed()
+	waitFor(t, "the pictures", func() bool {
+		imgs, _, _ := previewObjects(u, nil)
+		return imgs == 2
+	})
+}
+
 func TestPreviewShowsPages(t *testing.T) {
 	u := newTestUI(t)
 	path := filepath.Join(t.TempDir(), "trimmed.pdf")

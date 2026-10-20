@@ -58,7 +58,7 @@ The examples below use a 4-page input `in.pdf` (pages numbered 1-4) and an 8-pag
 | `-grid CxR` | required | Columns x rows per sheet, e.g. `3x2`. |
 | `-clone CxR` | `1x1` | Repeat the whole grid `C x R` times on the sheet. |
 | `-clonepadx`, `-clonepady` | 0 | Gap between clones. Work in all modes, including `repeat`. |
-| `-flow list` | `1` | Order and repetition of pages inside every block of `max(flow)` pages, e.g. `1,1,1,2,2,2`. |
+| `-flow list` | `1` | Order and repetition of pages inside every block of `max(flow)` pages, e.g. `1,1,1,2,2,2`. It wins over the page count: pages it asks for that the source lacks are blank, no `-padblank` needed. |
 
 ### Cropmarks and bleed
 
@@ -77,7 +77,8 @@ on the sides, or use `-autopage -center`. With zero margins the top and left mar
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `-duplex` | off | Order pages for double-sided printing: a face sheet followed by its back sheet. Pads with blanks to an even number of sheets. |
+| `-duplex` | off | Order pages for double-sided printing: a face sheet followed by its back sheet. The page count must fill an even number of sheets, or add `-padblank`. |
+| `-padblank` | off | Fill the missing pages with blanks at the end (booklet: multiple of 4; duplex: full, even number of sheets). Never done unless asked. |
 | `-weld n` | 1 | Number of consecutive pages that stay together (a face group and its back group). Must divide the number of columns. |
 | `-flip` | off | Back sheet is mirrored along the columns (turn along the long edge). |
 | `-reverse` | off | Back sheet order is reversed. |
@@ -253,6 +254,7 @@ and a button that writes the PDF.
 
 ```
 make gui                  # bin/impose-gui, needs cgo (see the Makefile)
+make gui CGO_LDFLAGS=-L$HOME/.local/lib/impose-ldfix
 make gui-windows          # bin/impose-gui.exe, cross build with mingw-w64
 bin/impose-gui [file.pdf]
 ```

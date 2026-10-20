@@ -35,7 +35,7 @@ func TestReflow(t *testing.T) {
 	}
 
 	for i, tc := range tt {
-		got, err := Reflow(tc.in, tc.weld, tc.col, tc.row, tc.reversed, tc.flip)
+		got, err := Reflow(tc.in, tc.weld, tc.col, tc.row, tc.reversed, tc.flip, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,4 +77,13 @@ func span(a, z int) []int {
 		out = append(out, i)
 	}
 	return out
+}
+
+func TestReflowNoPad(t *testing.T) {
+	if _, err := Reflow(span(1, 3), 1, 2, 1, false, false, false); err == nil {
+		t.Error("expected error for unaligned input without pad")
+	}
+	if _, err := Reflow(span(1, 4), 1, 2, 1, false, false, false); err != nil {
+		t.Errorf("aligned input: %v", err)
+	}
 }

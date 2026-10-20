@@ -117,6 +117,8 @@ func (p *preview) CreateRenderer() fyne.WidgetRenderer {
 type imgKey struct {
 	img     *image.RGBA
 	through bool
+	// n tells apart the placements of the same page, one widget can sit in one cell only
+	n int
 }
 
 type previewRenderer struct {
@@ -125,6 +127,9 @@ type previewRenderer struct {
 	size fyne.Size
 	// imgs are kept from a build to the next, so their textures are not made again
 	imgs map[imgKey]*canvas.Image
+	// used and seen are of the build in progress: the widgets in use and how many times a picture was placed
+	used map[imgKey]*canvas.Image
+	seen map[imgKey]int
 }
 
 func (r *previewRenderer) MinSize() fyne.Size {
@@ -194,7 +199,9 @@ func (r *previewRenderer) image(pl impose.Placement, ppp float64, mirrorX, mirro
 	if img == nil {
 		return nil
 	}
-	ik := imgKey{img, through}
+	ik := imgKey{img: img, through: through}
+	ik.n = r.seen[ik]
+	r.seen[ik]++
 	ci := r.imgs[ik]
 	if ci == nil {
 		ci = canvas.NewImageFromImage(img)
@@ -204,13 +211,14 @@ func (r *previewRenderer) image(pl impose.Placement, ppp float64, mirrorX, mirro
 			ci.Translucency = backTranslucency
 		}
 	}
+	r.used[ik] = ci
 	return ci
 }
 
 func (r *previewRenderer) build() {
 	r.objs = r.objs[:0]
-	used := map[imgKey]*canvas.Image{}
-	defer func() { r.imgs = used }()
+	r.used, r.seen = map[imgKey]*canvas.Image{}, map[imgKey]int{}
+	defer func() { r.imgs = r.used }()
 	l := r.p.layout
 	if l == nil || len(l.Sheets) == 0 || l.Width <= 0 || l.Height <= 0 {
 		r.note(r.p.msg)
@@ -239,8 +247,7 @@ func (r *previewRenderer) build() {
 		r.objs = append(r.objs, o)
 	}
 	var want []thumbKey
-	addImage := func(ci *canvas.Image, through bool, x, y, w, h float64) {
-		used[imgKey{ci.Image.(*image.RGBA), through}] = ci
+	addImage := func(ci *canvas.Image, x, y, w, h float64) {
 		add(ci, x, y, w, h)
 	}
 
@@ -260,7 +267,7 @@ func (r *previewRenderer) build() {
 	shown := make([]bool, len(sheet.Placements))
 	for i, pl := range sheet.Placements {
 		if ci := r.image(pl, ppp, false, false, false, &want); ci != nil {
-			addImage(ci, false, pl.X, pl.Y, pl.W, pl.H)
+			addImage(ci, pl.X, pl.Y, pl.W, pl.H)
 			shown[i] = true
 			continue
 		}
@@ -280,7 +287,7 @@ func (r *previewRenderer) build() {
 				y = l.Height - pl.Y - pl.H
 			}
 			if ci := r.image(pl, ppp, mirrorX, mirrorY, true, &want); ci != nil {
-				addImage(ci, true, x, y, pl.W, pl.H)
+				addImage(ci, x, y, pl.W, pl.H)
 			}
 			r.dashedRect(pos(x, y), dim(pl.W, pl.H), backColor)
 		}

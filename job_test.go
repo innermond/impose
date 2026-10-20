@@ -445,3 +445,56 @@ func TestPlanHasBleed(t *testing.T) {
 		t.Errorf("bleed %v %v, want 3 4", l.Bleedx, l.Bleedy)
 	}
 }
+
+func TestPlanFlowWinsOverPageCount(t *testing.T) {
+	mm := creator.PPMM
+	src := numbered(t, 2)
+	for _, duplex := range []bool{false, true} {
+		o := DefaultOptions()
+		o.Width, o.Height = 900*mm, 320*mm
+		o.NoCropmark = true
+		o.Col, o.Row = 4, 1
+		o.Flow, o.Duplex = []int{1, 1, 2, 2}, duplex
+		if duplex {
+			o.PadBlank = false
+		}
+		if _, err := Plan(context.Background(), o, src); err != nil {
+			t.Errorf("duplex=%v: %v", duplex, err)
+		}
+	}
+	// without a flow the guard still applies
+	o := DefaultOptions()
+	o.Width, o.Height = 900*mm, 320*mm
+	o.NoCropmark = true
+	o.Col, o.Row, o.Duplex = 4, 1, true
+	if _, err := Plan(context.Background(), o, src); err == nil {
+		t.Error("duplex without flow or padblank should fail")
+	}
+}
+
+func TestPlanFlowAppliedToSourcePages(t *testing.T) {
+	mm := creator.PPMM
+	src := numbered(t, 2)
+	for _, weld := range []int{1, 2} {
+		for _, duplex := range []bool{false, true} {
+			o := DefaultOptions()
+			o.Width, o.Height = 900*mm, 320*mm
+			o.NoCropmark = true
+			o.Col, o.Row = 2, 1
+			o.Flow, o.Duplex, o.Weld = []int{1, 1, 2, 2}, duplex, weld
+			l, err := Plan(context.Background(), o, src)
+			if err != nil {
+				t.Fatalf("duplex=%v weld=%d: %v", duplex, weld, err)
+			}
+			count := map[int]int{}
+			for _, pp := range planPages(l) {
+				for _, p := range pp {
+					count[p]++
+				}
+			}
+			if count[1] != 2 || count[2] != 2 {
+				t.Errorf("duplex=%v weld=%d: pages used %v, want 1 and 2 twice each", duplex, weld, count)
+			}
+		}
+	}
+}
