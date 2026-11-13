@@ -39,11 +39,14 @@ func tierFor(ppp, w, h float64) int {
 	return t
 }
 
-// thumbKey is a page rendered with a bleed at a tier.
+// thumbKey is a page rendered with a bleed and a trim override at a tier, clipped by
+// nearx, farx, neary, fary as MergeBleed would for the placement it stands for.
 type thumbKey struct {
-	page           int
-	bleedx, bleedy float64
-	tier           int
+	page                     int
+	bleedx, bleedy           float64
+	trimw, trimh             float64
+	nearx, farx, neary, fary float64
+	tier                     int
 }
 
 // orientKey is a thumbnail turned counter clockwise by quarter turns, then mirrored.
@@ -224,7 +227,7 @@ func (t *thumbs) putLocked(k any, img *image.RGBA) {
 
 // renderPage draws a page as it is cut by the imposition, with its bleed.
 func renderPage(src *impose.Source, k thumbKey) (*image.RGBA, error) {
-	pdf, err := src.PagePDF(k.page, k.bleedx, k.bleedy)
+	pdf, err := src.PagePDF(k.page, k.bleedx, k.bleedy, k.trimw, k.trimh, k.nearx, k.farx, k.neary, k.fary)
 	if err != nil {
 		return nil, err
 	}

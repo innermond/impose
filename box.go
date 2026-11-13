@@ -40,6 +40,8 @@ type Boxes struct {
 	Small                    *SmallBox
 	Col, Row, CloneX, CloneY int
 	ClonePadX, ClonePadY     float64
+	Bleedx, Bleedy           float64
+	MergeBleed               bool
 	Num                      int
 
 	Creator *creator.Creator
@@ -78,36 +80,14 @@ func (bb *Boxes) NewSheet() {
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongWidth() {
-	wpages := 0.0
-	available := bb.Big.AvailableWidth()
-	i := 0
-	for wpages < available {
-		wpages += bb.Small.Width
-		// sensible to grid
-		if i == bb.Col*bb.CloneX {
-			break
-		}
-		i++
-	}
-	wpages -= bb.Small.Width
-	bb.Big.Left = -0.5*(bb.ClonePadX*float64(bb.CloneX-1)) + (bb.Big.Width-wpages)*0.5
+	wpages := gridSpan(bb.Col*bb.CloneX, bb.Col, bb.ClonePadX, bb.Small.Width, bb.Bleedx, bb.MergeBleed)
+	bb.Big.Left = (bb.Big.Width - wpages) * 0.5
 	bb.Big.Right = bb.Big.Left
 }
 
 func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
-	hpages := 0.0
-	available := bb.Big.AvailableHeight()
-	i := 0
-	for hpages < available {
-		hpages += bb.Small.Height
-		// sensible to grid
-		if i == bb.Row*bb.CloneY {
-			break
-		}
-		i++
-	}
-	hpages -= bb.Small.Height
-	bb.Big.Top = -0.5*(bb.ClonePadY*float64(bb.CloneY-1)) + (bb.Big.Height-hpages)*0.5
+	hpages := gridSpan(bb.Row*bb.CloneY, bb.Row, bb.ClonePadY, bb.Small.Height, bb.Bleedy, bb.MergeBleed)
+	bb.Big.Top = (bb.Big.Height - hpages) * 0.5
 	bb.Big.Bottom = bb.Big.Top
 }
 
@@ -115,17 +95,13 @@ func (bb *Boxes) AdjustMarginCenteringAlongHeight() {
 const epsilon = 1e-9
 
 func (bb *Boxes) EnoughWidth() bool {
-	consumedWidth := float64(bb.Col*bb.CloneX) * bb.Small.Width
-	consumedCloned := float64((bb.CloneX - 1)) * bb.ClonePadX
-	consumed := consumedWidth + consumedCloned
+	consumed := gridSpan(bb.Col*bb.CloneX, bb.Col, bb.ClonePadX, bb.Small.Width, bb.Bleedx, bb.MergeBleed)
 	dif := bb.Big.AvailableWidth() - consumed
 	return dif > 0.0 || math.Abs(dif) < epsilon
 }
 
 func (bb *Boxes) EnoughHeight() bool {
-	consumedHeight := float64(bb.Row*bb.CloneY) * bb.Small.Height
-	consumedCloned := float64((bb.CloneY - 1)) * bb.ClonePadY
-	consumed := consumedHeight + consumedCloned
+	consumed := gridSpan(bb.Row*bb.CloneY, bb.Row, bb.ClonePadY, bb.Small.Height, bb.Bleedy, bb.MergeBleed)
 	dif := bb.Big.AvailableHeight() - consumed
 	return dif > 0.0 || math.Abs(dif) < epsilon
 }

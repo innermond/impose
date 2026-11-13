@@ -39,7 +39,10 @@ type Settings struct {
 	PadBlank                   bool
 	Weld, Turn, Creep          string
 	Marks                      bool
-	Bleed, Offset, MarkSize    string
+	BleedX, BleedY             string
+	MergeBleed                 bool
+	TrimW, TrimH               string
+	Offset, MarkSize           string
 	MarkPages                  string
 	Outline                    bool
 }
@@ -50,7 +53,7 @@ func (s *Settings) lengthFields() []*string {
 		&s.Width, &s.Height, &s.Autopadding,
 		&s.Top, &s.Right, &s.Bottom, &s.Left,
 		&s.PadX, &s.PadY, &s.Creep,
-		&s.Bleed, &s.Offset, &s.MarkSize,
+		&s.BleedX, &s.BleedY, &s.TrimW, &s.TrimH, &s.Offset, &s.MarkSize,
 	}
 }
 
@@ -61,6 +64,7 @@ func defaultSettings() Settings {
 		Width: "320", Height: "450", Autopadding: "2",
 		CloneX: "1", CloneY: "1", Weld: "1",
 		Marks: true, Offset: "2", MarkSize: "5",
+		MergeBleed: true,
 	}
 }
 
@@ -219,8 +223,11 @@ func (s Settings) options() (impose.Options, error) {
 		o.PadBlank = s.PadBlank
 	}
 
-	bleed := p.length("bleed", s.Bleed)
-	o.Bleedx, o.Bleedy = bleed, bleed
+	o.Bleedx = p.length("bleed x", s.BleedX)
+	o.Bleedy = p.length("bleed y", s.BleedY)
+	o.MergeBleed = s.MergeBleed
+	o.TrimWidth = p.length("trim width", s.TrimW)
+	o.TrimHeight = p.length("trim height", s.TrimH)
 	o.Offx, o.Offy = p.length("offset", s.Offset), p.length("offset", s.Offset)
 	o.Markw, o.Markh = p.length("mark size", s.MarkSize), p.length("mark size", s.MarkSize)
 	o.NoCropmark = !s.Marks

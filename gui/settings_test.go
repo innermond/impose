@@ -25,11 +25,13 @@ func TestDefaultsAreTheCommandLineDefaults(t *testing.T) {
 	want.Col, want.Row = 2, 1
 	// the default options leave no flow and no clones set
 	want.CloneX, want.CloneY = 1, 1
+	// the GUI defaults to merging bleed, unlike the command line
+	want.MergeBleed = true
 	if !reflect.DeepEqual(o, want) {
 		t.Errorf("got %+v\nwant %+v", o, want)
 	}
 	cmd, err := s.command("in.pdf")
-	if err != nil || cmd != "impose -f in.pdf -grid 2x1" {
+	if err != nil || cmd != "impose -f in.pdf -grid 2x1 -mergebleed" {
 		t.Errorf("command %q %v", cmd, err)
 	}
 }
@@ -47,7 +49,7 @@ func TestOptionsModes(t *testing.T) {
 	}
 
 	s = defaultSettings()
-	s.Mode, s.Creep, s.Bleed = modeBooklet, "3", "1"
+	s.Mode, s.Creep, s.BleedX, s.BleedY = modeBooklet, "3", "1", "1"
 	o, err = s.options()
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +82,7 @@ func TestOptionsModes(t *testing.T) {
 
 func TestHiddenFieldsAreIgnored(t *testing.T) {
 	s := defaultSettings()
-	s.Turn, s.Creep, s.Flow, s.Weld, s.Duplex, s.Bleed = "180", "1", "1,2", "2", true, "1"
+	s.Turn, s.Creep, s.Flow, s.Weld, s.Duplex, s.BleedX, s.BleedY = "180", "1", "1,2", "2", true, "1", "1"
 	s.Cols, s.Rows = "2", "1"
 	// turn and creep are for the booklet
 	o, err := s.options()

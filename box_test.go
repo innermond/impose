@@ -52,3 +52,23 @@ func TestEnoughCountsClones(t *testing.T) {
 		t.Error("two clones of 100 should not fit in 150")
 	}
 }
+
+// MergeBleed only affects how a page is drawn, never the grid's size or fit: these
+// functions must give the same answer whether it is on or off.
+func TestEnoughAndGuessGridIgnoreMergeBleed(t *testing.T) {
+	bb := newBoxes(300, 200, 100, 100, 1, 1, 0, 0)
+	bb.Col, bb.Row = 3, 2
+	wantW, wantH := bb.EnoughWidth(), bb.EnoughHeight()
+	wantCol, wantRow := bb.GuessGrid()
+
+	bb.Bleedx, bb.Bleedy, bb.MergeBleed = 5, 5, true
+	if w := bb.EnoughWidth(); w != wantW {
+		t.Errorf("EnoughWidth changed with MergeBleed: got %v want %v", w, wantW)
+	}
+	if h := bb.EnoughHeight(); h != wantH {
+		t.Errorf("EnoughHeight changed with MergeBleed: got %v want %v", h, wantH)
+	}
+	if col, row := bb.GuessGrid(); col != wantCol || row != wantRow {
+		t.Errorf("GuessGrid changed with MergeBleed: got %dx%d want %dx%d", col, row, wantCol, wantRow)
+	}
+}

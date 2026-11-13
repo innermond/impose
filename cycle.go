@@ -77,22 +77,53 @@ func (bb *Boxes) CycleAdjusted(pxp []int, progress func(int), adjuster func(i in
 	var (
 		rowbk *creator.Block
 	)
+	// xStarts/yStarts are the cumulative start position of every column/row across the
+	// whole sheet, every clone included: the uniform pitch x*w / y*h, unless MergeBleed
+	// shrinks the pitch at a mergeable boundary (any internal one, and a clone-group one
+	// too when there is no explicit clone pad there) by saving half a bleed on each side.
+	xStarts := gridStarts(bb.Col*bb.CloneX, bb.Col, bb.ClonePadX, w, bb.Bleedx, bb.MergeBleed)
+	yStarts := gridStarts(bb.Row*bb.CloneY, bb.Row, bb.ClonePadY, h, bb.Bleedy, bb.MergeBleed)
+	// MergeBleed needs each clone's own insets, which can differ at a clone's own edges
+	// (see gridInset), so it draws every clone directly rather than relying on the single
+	// shared, cheaply-restamped row block putRow otherwise uses.
+	draw := func(num, x, y int) error {
+		if bb.MergeBleed {
+			for j := 0; j < bb.CloneY; j++ {
+				gy := j*bb.Row + y
+				nearY, farY := gridInset(gy, bb.Row*bb.CloneY, bb.Row, bb.ClonePadY, bb.Bleedy, true)
+				cy := bb.Big.Top + yStarts[gy]
+				for ci := 0; ci < bb.CloneX; ci++ {
+					gx := ci*bb.Col + x
+					nearX, farX := gridInset(gx, bb.Col*bb.CloneX, bb.Col, bb.ClonePadX, bb.Bleedx, true)
+					cx := bb.Big.Left + xStarts[gx]
+					if err := bb.blockDrawPage(bb.Creator.Draw, num, cx, cy, nearX, farX, nearY, farY); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		return bb.BlockDrawPage(rowbk, num, xpos, ypos, 0, 0, 0, 0)
+	}
 grid:
 	for {
 		for y := 0; y < bb.Row; y++ {
-			if !bb.Dry {
+			if !bb.MergeBleed && !bb.Dry {
 				rowbk = creator.NewBlock(
 					bb.Big.Width,
 					bb.Small.Height,
 				)
 			}
-			xpos = bb.Big.Left
+			ypos = bb.Big.Top + yStarts[y]
 			for x := 0; x < bb.Col; x++ {
+				xpos = bb.Big.Left + xStarts[x]
 				if err = bb.ctxErr(); err != nil {
 					return sheetNum, err
 				}
 				if i >= bb.Num {
-					bb.putRow(rowbk)
+					if !bb.MergeBleed {
+						bb.putRow(rowbk)
+					}
 					if showcropmarkPages == nil || slices.Contains(showcropmarkPages, sheetNum) {
 						bb.DrawCropmark()
 					}
@@ -108,8 +139,8 @@ grid:
 						bb.DrawCropmark()
 					}
 					// initialize position
-					xpos = bb.Big.Left
-					ypos = bb.Big.Top
+					ypos = bb.Big.Top + yStarts[y]
+					xpos = bb.Big.Left + xStarts[x]
 					bb.NewSheet()
 					sheetNum++
 					nextSheet = false
@@ -119,13 +150,12 @@ grid:
 						adjuster(i)
 					}
 					if bb.OnPlace != nil {
-						for _, p := range bb.placements(pxp[i], xpos, ypos) {
+						for _, p := range bb.placements(pxp[i], x, y, xStarts, yStarts) {
 							bb.OnPlace(sheetNum, p)
 						}
 					}
 					if !bb.Dry {
-						err = bb.BlockDrawPage(rowbk, pxp[i], xpos, ypos)
-						if err != nil {
+						if err = draw(pxp[i], x, y); err != nil {
 							return sheetNum, err
 						}
 					}
@@ -135,19 +165,20 @@ grid:
 				if progress != nil {
 					progress(i)
 				}
-				xpos += float64(w)
 			}
-			bb.putRow(rowbk)
-			ypos += float64(h)
-			xpos = bb.Big.Left
+			if !bb.MergeBleed {
+				bb.putRow(rowbk)
+			}
 		}
 	}
 	bb.Sheets = sheetNum + 1
 	return sheetNum, nil
 }
 
-// placements gives where the page of the cell, with its clones, is on the sheet
-func (bb *Boxes) placements(num int, xpos, ypos float64) []Placement {
+// placements gives where the page of the cell at grid column x, row y, with its clones, is
+// on the sheet. xStarts, yStarts are the cumulative positions CycleAdjusted computed once
+// for the whole sheet (see there).
+func (bb *Boxes) placements(num, x, y int, xStarts, yStarts []float64) []Placement {
 	w, h := bb.Small.Width, bb.Small.Height
 	angle := bb.Small.Angle
 	// creeping moves the page along the axis of its rotation
@@ -156,12 +187,23 @@ func (bb *Boxes) placements(num int, xpos, ypos float64) []Placement {
 	case -90, 270, 90, -270:
 		dx, dy = 0, -bb.DeltaPos
 	}
+	nCol, nRow := bb.Col*bb.CloneX, bb.Row*bb.CloneY
 	out := make([]Placement, 0, bb.CloneX*bb.CloneY)
 	for j := 0; j < bb.CloneY; j++ {
+		gy := j*bb.Row + y
+		nearY, farY := gridInset(gy, nRow, bb.Row, bb.ClonePadY, bb.Bleedy, bb.MergeBleed)
+		ypos := bb.Big.Top + yStarts[gy]
 		for i := 0; i < bb.CloneX; i++ {
-			xk := float64(i)*float64(bb.Col)*w + bb.ClonePadX*float64(i)
-			yk := float64(j)*float64(bb.Row)*h + bb.ClonePadY*float64(j)
-			out = append(out, Placement{Page: num, X: xpos + xk + dx, Y: ypos + yk + dy, W: w, H: h, Angle: angle})
+			gx := i*bb.Col + x
+			nearX, farX := gridInset(gx, nCol, bb.Col, bb.ClonePadX, bb.Bleedx, bb.MergeBleed)
+			xpos := bb.Big.Left + xStarts[gx]
+			out = append(out, Placement{
+				Page: num,
+				X:    xpos + dx, Y: ypos + dy,
+				W: w - nearX - farX, H: h - nearY - farY,
+				Angle: angle,
+				NearX: nearX, FarX: farX, NearY: nearY, FarY: farY,
+			})
 		}
 	}
 	return out
@@ -190,7 +232,19 @@ func (bb *Boxes) putRow(rowbk *creator.Block) {
 	}
 }
 
-func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64) error {
+// BlockDrawPage draws page num onto block at xpos, ypos. nearX, farX, nearY, farY are the
+// bleed clipped away on each side by MergeBleed (0 when it is off, leaving the drawn block
+// exactly as wide/tall as before).
+func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos, nearX, farX, nearY, farY float64) error {
+	return bb.blockDrawPage(block.Draw, num, xpos, ypos, nearX, farX, nearY, farY)
+}
+
+// blockDrawPage is BlockDrawPage, drawing through draw (a block's own Draw, to stamp onto
+// another block, or the creator's Draw, to go straight onto the sheet) instead of always a
+// specific destination block: MergeBleed draws every clone straight to the sheet, since
+// their insets can each differ at their own edges (see gridInset), unlike the plain,
+// uniform case which draws once into a shared row block and cheaply restamps it.
+func (bb *Boxes) blockDrawPage(draw func(creator.Drawable) error, num int, xpos, ypos, nearX, farX, nearY, farY float64) error {
 	var (
 		err error
 		//w, h  = bb.Small.Width, bb.Small.Height
@@ -228,20 +282,26 @@ func (bb *Boxes) BlockDrawPage(block *creator.Block, num int, xpos, ypos float64
 	// do the math!!!
 	switch angle {
 	case 0.0:
-		bk.Clip(-1*dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		// Clip's y is bottom-up (pdf native), unlike SetPos's top-down y (see above): the
+		// near/top amount is skipped by the position shift, the far/bottom one by Clip's offset.
+		bk.Clip(-1*dt+nearX, farY, bk.Width()-nearX-farX, bk.Height()-nearY-farY, bb.Outline)
+		xposx -= nearX
+		yposy -= nearY
 	case -90, 270:
 		bk.Clip(0, -dt, bk.Width(), bk.Height(), bb.Outline)
 	case 90, -270:
 		bk.Clip(0, dt, bk.Width(), bk.Height(), bb.Outline)
 	case 180, -180:
-		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
+		bk.Clip(dt+farX, farY, bk.Width()-nearX-farX, bk.Height()-nearY-farY, bb.Outline)
+		xposx -= farX
+		yposy -= farY
 	default:
 		bk.Clip(dt, 0, bk.Width(), bk.Height(), bb.Outline)
 	}
 	xposx += dt
 	// layout page
 	bk.SetPos(xposx, yposy)
-	_ = block.Draw(bk)
+	_ = draw(bk)
 
 	return err
 }

@@ -75,7 +75,34 @@ func (u *ui) showMessage(msg string) {
 	u.prev.setLayout(nil, msg)
 	u.useGuess.Hide()
 	u.status.SetText("")
+	u.clearBoxes()
 	u.sheetChanged()
+}
+
+// clearBoxes empties the page boxes section, there is no file to show it for.
+func (u *ui) clearBoxes() {
+	u.mediaBoxLabel.SetText("")
+	u.trimBoxLabel.SetText("")
+	u.cropBoxLabel.SetText("")
+}
+
+// showBoxes displays the page boxes, in mm.
+func (u *ui) showBoxes(pb impose.PageBoxes, err error) {
+	if err != nil {
+		u.clearBoxes()
+		return
+	}
+	mm := impose.PointsPerMM
+	box := func(w, h float64) string {
+		return fmt.Sprintf("%s x %s mm", formatNumber(w/mm), formatNumber(h/mm))
+	}
+	u.mediaBoxLabel.SetText(box(pb.MediaW, pb.MediaH))
+	u.trimBoxLabel.SetText(box(pb.TrimW, pb.TrimH))
+	if pb.HasCrop {
+		u.cropBoxLabel.SetText(box(pb.CropW, pb.CropH))
+	} else {
+		u.cropBoxLabel.SetText("not declared")
+	}
 }
 
 func (u *ui) showError(err error) {
@@ -147,7 +174,11 @@ func (u *ui) replan() {
 			// a newer plan took the place
 			return
 		}
-		fyne.Do(func() { u.showPlan(l, err) })
+		pb, pbErr := src.Boxes(opts.Bleedx, opts.Bleedy, opts.TrimWidth, opts.TrimHeight)
+		fyne.Do(func() {
+			u.showPlan(l, err)
+			u.showBoxes(pb, pbErr)
+		})
 	}()
 }
 
@@ -234,7 +265,7 @@ func (u *ui) openFileNote(path, note string) {
 		var w, h float64
 		if err == nil {
 			if src, err = impose.OpenSource(f); err == nil {
-				w, h, err = src.PageSize(0, 0)
+				w, h, err = src.PageSize(0, 0, 0, 0)
 			}
 			if err != nil {
 				f.Close()

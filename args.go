@@ -122,6 +122,11 @@ func (o Options) CLIArgs(file string) []string {
 		}
 	}
 	pair("bleed", "bleedx", "bleedy", o.Bleedx, o.Bleedy, 0)
+	if o.MergeBleed {
+		add("mergebleed")
+	}
+	length("trimw", o.TrimWidth, 0)
+	length("trimh", o.TrimHeight, 0)
 	// the room cropmarks need counts for the size of the sheet, even if they are not drawn
 	pair("offset", "offx", "offy", o.Offx, o.Offy, def.Offx)
 	pair("marksize", "markw", "markh", o.Markw, o.Markh, def.Markw)

@@ -12,6 +12,8 @@ type PdfReader struct {
 	*model.PdfReader
 	pg     *model.PdfPage
 	dx, dy float64
+	// tw, th override the detected trim size, 0 means keep it as detected.
+	tw, th float64
 	// orig keeps the mediabox of pages as they are in the file, before any adjustment
 	orig map[int]model.PdfRectangle
 }
@@ -21,12 +23,18 @@ func NewReader(f io.ReadSeeker, dx, dy float64) (*PdfReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PdfReader{r, nil, dx, dy, map[int]model.PdfRectangle{}}, nil
+	return &PdfReader{PdfReader: r, dx: dx, dy: dy, orig: map[int]model.PdfRectangle{}}, nil
 }
 
 // SetBleed changes the bleed pages are expanded with, it works on pages got after it.
 func (r *PdfReader) SetBleed(dx, dy float64) {
 	r.dx, r.dy = dx, dy
+}
+
+// SetTrim overrides the detected trim size pages are expanded from, it works on pages got
+// after it. w and h 0 means use the file's own TrimBox, CropBox or MediaBox as before.
+func (r *PdfReader) SetTrim(w, h float64) {
+	r.tw, r.th = w, h
 }
 
 // transformMediaBox calculates the new MediaBox coordinates after rotation
@@ -55,24 +63,35 @@ func (r *PdfReader) AdjustMediaBox(num int) error {
 		return errors.New("No page. Need to call GetPage(num) before")
 	}
 	// TODO involve BleedBox
-	// adjust mediabox expanding from trim/crop box with bleed amounts but no more than actual mediabox
-	// TrimBox is the final page
+	// the trim box is the page's final, physically cut-off size: TrimBox if the file
+	// declares one, else CropBox, else the page's own original MediaBox (nothing more
+	// specific is known, so the whole page is taken as the trim)
 	tbox, err := r.pg.GetBox("TrimBox")
-	// no trimbox
 	if err != nil {
 		cbox, err := r.pg.GetBox("CropBox")
 		if err == nil {
 			tbox = cbox
-			r.pg.TrimBox = cbox
 		} else {
-			// no trimbox or cropbox
-			// only mediabox so dont adjust
-			return nil
+			mediabox, ok := r.orig[num]
+			if !ok {
+				return errors.New("No mediabox")
+			}
+			tbox = &mediabox
 		}
 	}
-	// MediaBox = TrimBox + bleed
+	// an override replaces the detected trim box with one of the wanted size, centered
+	// on the same spot, for files whose own boxes do not match the real, physical trim
+	if r.tw > 0 && r.th > 0 {
+		cx, cy := (tbox.Llx+tbox.Urx)/2, (tbox.Lly+tbox.Ury)/2
+		tbox = &model.PdfRectangle{
+			Llx: cx - r.tw/2, Urx: cx + r.tw/2,
+			Lly: cy - r.th/2, Ury: cy + r.th/2,
+		}
+	}
+	r.pg.TrimBox = tbox
+
+	// MediaBox = TrimBox expanded outward by bleed on every edge
 	mbox := &model.PdfRectangle{}
-	// expand with bleedx and bleedy
 	llx := tbox.Llx - r.dx
 	lly := tbox.Lly - r.dy
 	urx := tbox.Urx + r.dx
@@ -87,21 +106,6 @@ func (r *PdfReader) AdjustMediaBox(num int) error {
 	mbox.Urx = urx
 	mbox.Ury = ury
 
-	// what?? we have at least a cropbox or a trimbox but not a mediabox???
-	mediabox, ok := r.orig[num]
-	if !ok {
-		return errors.New("No mediabox")
-	}
-
-	// do not exceed unadjusted real mediabox
-	// mediabox width smaller than adjusted mbox width
-	if mediabox.Urx-mediabox.Llx < mbox.Urx-mbox.Llx ||
-		mediabox.Ury-mediabox.Lly < mbox.Ury-mbox.Lly {
-		// use mediabox
-		mb := mediabox
-		mbox = &mb
-	}
-	// adjust
 	r.pg.MediaBox = mbox
 	return nil
 }

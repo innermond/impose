@@ -42,6 +42,8 @@ var (
 	weld                   int
 	angle                  float64
 	bleed, bleedx, bleedy  float64
+	mergebleed             bool
+	trimw, trimh           float64
 	offset, offx, offy     float64
 	marksize, markw, markh float64
 	showcropmark           bool
@@ -89,15 +91,18 @@ var (
 		"duplex":    true,
 	}
 	markFlags = map[string]bool{
-		"offset":   true,
-		"offx":     true,
-		"offy":     true,
-		"bleed":    true,
-		"bleedy":   true,
-		"bleedx":   true,
-		"marksize": true,
-		"markw":    true,
-		"markh":    true,
+		"offset":     true,
+		"offx":       true,
+		"offy":       true,
+		"bleed":      true,
+		"bleedy":     true,
+		"bleedx":     true,
+		"mergebleed": true,
+		"trimw":      true,
+		"trimh":      true,
+		"marksize":   true,
+		"markw":      true,
+		"markh":      true,
 	}
 	viewFlags = map[string]bool{
 		"nocropmark":    true,
@@ -161,6 +166,9 @@ func initMarkFlags(flagset *flag.FlagSet) {
 	flagset.Float64Var(&bleed, "bleed", 0.0, "distance cut mark has been given in respect to the last edge")
 	flagset.Float64Var(&bleedx, "bleedx", 0.0, "axe x distance cut mark has been given in respect to the last edge")
 	flagset.Float64Var(&bleedy, "bleedy", 0.0, "axe y distance cut mark has been given in respect to the last edge")
+	flagset.BoolVar(&mergebleed, "mergebleed", false, "halve bleed at shared edges between neighboring cards; outer edges keep full bleed")
+	flagset.Float64Var(&trimw, "trimw", 0.0, "overrides the detected trim width; 0 keeps the file's own box")
+	flagset.Float64Var(&trimh, "trimh", 0.0, "overrides the detected trim height; 0 keeps the file's own box")
 	flagset.Float64Var(&marksize, "marksize", 5.0, "cut mark size")
 	flagset.Float64Var(&markw, "markw", 5.0, "axe x cut mark size")
 	flagset.Float64Var(&markh, "markh", 5.0, "axe y cut mark size")
@@ -295,6 +303,7 @@ func param() error {
 		"width": &width, "height": &height,
 		"offset": &offset, "offx": &offx, "offy": &offy,
 		"bleed": &bleed, "bleedx": &bleedx, "bleedy": &bleedy,
+		"trimw": &trimw, "trimh": &trimh,
 		"marksize": &marksize, "markw": &markw, "markh": &markh,
 		"autopadding": &autopadding, "creep": &creep,
 	}

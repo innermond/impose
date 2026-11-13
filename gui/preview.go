@@ -179,7 +179,11 @@ func thumbKeyFor(l *impose.Layout, pl impose.Placement, turns int, ppp float64) 
 	if turns%2 == 1 {
 		w, h = h, w
 	}
-	return thumbKey{page: pl.Page, bleedx: l.Bleedx, bleedy: l.Bleedy, tier: tierFor(ppp, w, h)}
+	return thumbKey{
+		page: pl.Page, bleedx: l.Bleedx, bleedy: l.Bleedy, trimw: l.TrimWidth, trimh: l.TrimHeight,
+		nearx: pl.NearX, farx: pl.FarX, neary: pl.NearY, fary: pl.FarY,
+		tier: tierFor(ppp, w, h),
+	}
 }
 
 // image gives the picture of a placement, turned and mirrored as it lies on the sheet, nil if
@@ -348,7 +352,10 @@ func (r *previewRenderer) trim(l *impose.Layout, pl impose.Placement, pos func(x
 	if turns, ok := quarterTurns(pl.Angle); ok && turns%2 == 1 {
 		bx, by = by, bx
 	}
-	if 2*bx >= pl.W || 2*by >= pl.H {
+	// MergeBleed keeps only part of the bleed on a side shared with a neighboring card
+	bxNear, bxFar := bx-pl.NearX, bx-pl.FarX
+	byNear, byFar := by-pl.NearY, by-pl.FarY
+	if bxNear+bxFar >= pl.W || byNear+byFar >= pl.H {
 		return
 	}
 	shade := func(x, y, w, h float64) {
@@ -357,11 +364,11 @@ func (r *previewRenderer) trim(l *impose.Layout, pl impose.Placement, pos func(x
 		s.Resize(dim(w, h))
 		r.objs = append(r.objs, s)
 	}
-	shade(pl.X, pl.Y, pl.W, by)
-	shade(pl.X, pl.Y+pl.H-by, pl.W, by)
-	shade(pl.X, pl.Y+by, bx, pl.H-2*by)
-	shade(pl.X+pl.W-bx, pl.Y+by, bx, pl.H-2*by)
-	r.dashedRect(pos(pl.X+bx, pl.Y+by), dim(pl.W-2*bx, pl.H-2*by), trimColor)
+	shade(pl.X, pl.Y, pl.W, byNear)
+	shade(pl.X, pl.Y+pl.H-byFar, pl.W, byFar)
+	shade(pl.X, pl.Y+byNear, bxNear, pl.H-byNear-byFar)
+	shade(pl.X+pl.W-bxFar, pl.Y+byNear, bxFar, pl.H-byNear-byFar)
+	r.dashedRect(pos(pl.X+bxNear, pl.Y+byNear), dim(pl.W-bxNear-bxFar, pl.H-byNear-byFar), trimColor)
 }
 
 // dashedRect draws the edges of a rectangle with dashes.

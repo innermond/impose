@@ -51,15 +51,19 @@ type ui struct {
 	nextBtn     *widget.Button
 	status      *widget.Label
 	useGuess    *widget.Button
-	cmd         *widget.Entry
-	genBtn      *widget.Button
-	cancelBtn   *widget.Button
-	busy        *widget.ProgressBarInfinite
-	modes       *widget.RadioGroup
-	unit        *widget.Select
-	presets     *widget.Select
-	acc         *widget.Accordion
-	forms       map[string]*widget.Form
+	// mediaBoxLabel, trimBoxLabel and cropBoxLabel show the page boxes, in mm
+	mediaBoxLabel *widget.Label
+	trimBoxLabel  *widget.Label
+	cropBoxLabel  *widget.Label
+	cmd           *widget.Entry
+	genBtn        *widget.Button
+	cancelBtn     *widget.Button
+	busy          *widget.ProgressBarInfinite
+	modes         *widget.RadioGroup
+	unit          *widget.Select
+	presets       *widget.Select
+	acc           *widget.Accordion
+	forms         map[string]*widget.Form
 
 	// cmdText is the command line shown
 	cmdText string
@@ -170,11 +174,23 @@ func (u *ui) build() {
 	// marks
 	u.forms["marks"] = widget.NewForm(
 		item("", u.check("Cropmarks", &s.Marks, nil)),
-		item("Bleed", u.entry(&s.Bleed, "0")),
+		item("Bleed x, y", pair(u.entry(&s.BleedX, "0"), u.entry(&s.BleedY, "0"))),
+		item("", u.check("Merge bleed at shared edges", &s.MergeBleed, nil)),
+		item("Trim override w, h", pair(u.entry(&s.TrimW, "auto"), u.entry(&s.TrimH, "auto"))),
 		item("Distance from trim", u.entry(&s.Offset, "")),
 		item("Mark size", u.entry(&s.MarkSize, "")),
 		item("Only on sheets", u.entry(&s.MarkPages, "all, ex: 1,3")),
 		item("", u.check("Draw a box around pages", &s.Outline, nil)),
+	)
+
+	// page boxes, read only, always shown in mm
+	u.mediaBoxLabel = widget.NewLabel("")
+	u.trimBoxLabel = widget.NewLabel("")
+	u.cropBoxLabel = widget.NewLabel("")
+	u.forms["boxes"] = widget.NewForm(
+		item("MediaBox", u.mediaBoxLabel),
+		item("TrimBox", u.trimBoxLabel),
+		item("CropBox", u.cropBoxLabel),
 	)
 
 	u.acc = widget.NewAccordion()
@@ -385,6 +401,7 @@ func (u *ui) applyMode() {
 		u.acc.Items = append(u.acc.Items, widget.NewAccordionItem(title["flip"], flip))
 	}
 	u.acc.Items = append(u.acc.Items, widget.NewAccordionItem("Cropmarks & bleed", u.forms["marks"]))
+	u.acc.Items = append(u.acc.Items, widget.NewAccordionItem("Page boxes (mm)", u.forms["boxes"]))
 	u.acc.Refresh()
 	u.acc.OpenAll()
 }

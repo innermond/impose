@@ -39,26 +39,25 @@ func (bk *CropMarkBlock) lines(bookletMode bool) []Line {
 		return ll
 	}
 	// col and row count cells over all clones, marks follow every clone with its pad
-	colsPer, rowsPer := col/cx, row/cy
-	for ci := 0; ci < cx; ci++ {
-		xoff := float64(ci) * (float64(colsPer)*w + cpx)
-		for x := 0; x < colsPer; x++ {
-			// top line with space for cropmark
-			x1 := xoff + float64(x)*w + bleedx - 0.5*lw + extw
-			ll = append(ll, Line{x1, 0, x1, markh})
-			x2 := xoff + float64(x+1)*w - bleedx - 0.5*lw + extw
-			ll = append(ll, Line{x2, 0, x2, markh})
-		}
+	group, grouprow := bk.father.Col, bk.father.Row
+	merge := bk.father.MergeBleed
+	xStarts := gridStarts(col, group, cpx, w, bleedx, merge)
+	yStarts := gridStarts(row, grouprow, cpy, h, bleedy, merge)
+	for x := 0; x < col; x++ {
+		near, _ := gridInset(x, col, group, cpx, bleedx, merge)
+		// top line with space for cropmark
+		x1 := xStarts[x] + bleedx - near - 0.5*lw + extw
+		ll = append(ll, Line{x1, 0, x1, markh})
+		x2 := xStarts[x] + w - near - bleedx - 0.5*lw + extw
+		ll = append(ll, Line{x2, 0, x2, markh})
 	}
-	for cj := 0; cj < cy; cj++ {
-		yoff := float64(cj) * (float64(rowsPer)*h + cpy)
+	for y := 0; y < row; y++ {
+		near, _ := gridInset(y, row, grouprow, cpy, bleedy, merge)
 		// left line with space for cropmark
-		for y := 0; y < rowsPer; y++ {
-			y1 := yoff + float64(y)*h + bleedy + 0.5*lw + exth
-			ll = append(ll, Line{0, y1, markw, y1})
-			y2 := yoff + float64(y+1)*h - bleedy + 0.5*lw + exth
-			ll = append(ll, Line{0, y2, markw, y2})
-		}
+		y1 := yStarts[y] + bleedy - near + 0.5*lw + exth
+		ll = append(ll, Line{0, y1, markw, y1})
+		y2 := yStarts[y] + h - near - bleedy + 0.5*lw + exth
+		ll = append(ll, Line{0, y2, markw, y2})
 	}
 	return ll
 }
@@ -71,8 +70,8 @@ func (bk *CropMarkBlock) lineWidth() float64 {
 // size of the block that encompasses the cropmarks
 func (bk *CropMarkBlock) size() (w, h float64) {
 	f := bk.father
-	w = float64(f.CloneX-1)*f.ClonePadX + float64(bk.col)*bk.w + 2*bk.extw
-	h = float64(f.CloneY-1)*f.ClonePadY + float64(bk.row)*bk.h + 2*bk.exth
+	w = gridSpan(bk.col, f.Col, f.ClonePadX, bk.w, bk.bleedx, f.MergeBleed) + 2*bk.extw
+	h = gridSpan(bk.row, f.Row, f.ClonePadY, bk.h, bk.bleedy, f.MergeBleed) + 2*bk.exth
 	return
 }
 

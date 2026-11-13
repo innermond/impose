@@ -206,7 +206,8 @@ func TestModes(t *testing.T) {
 	waitFor(t, "repeat", func() bool {
 		return u.layout != nil && len(u.layout.Sheets) == 2 && len(u.layout.Sheets[0].Placements) == 3
 	})
-	if u.acc.Items[1].Title != "Repeat" || len(u.acc.Items) != 4 {
+	// Sheet, Repeat, Pages, Cropmarks & bleed, Page boxes
+	if u.acc.Items[1].Title != "Repeat" || len(u.acc.Items) != 5 {
 		t.Errorf("sections %q, %d", u.acc.Items[1].Title, len(u.acc.Items))
 	}
 	// the turn of the booklet does not stay hidden in repeat
@@ -364,7 +365,7 @@ func TestPreviewOfClonesAndMarks(t *testing.T) {
 	typeIn(t, u, "cloney", "2")
 	typeIn(t, u, "padx", "6")
 	typeIn(t, u, "pady", "6")
-	u.s.Width, u.s.Height, u.s.Left, u.s.Top, u.s.Bleed = "320", "450", "14", "14", "3"
+	u.s.Width, u.s.Height, u.s.Left, u.s.Top, u.s.BleedX, u.s.BleedY = "320", "450", "14", "14", "3", "3"
 	u.pullAll()
 	u.changed()
 	waitFor(t, "clones", func() bool { return u.layout != nil && len(u.layout.Sheets[0].Placements) == 4 })
@@ -718,7 +719,7 @@ func TestPreviewShowsPages(t *testing.T) {
 	u.openFile(path)
 	waitFor(t, "the pdf", func() bool { return u.src != nil })
 	u.modes.SetSelected(modeBooklet)
-	u.s.Bleed, u.s.CenterX, u.s.CenterY = "3", true, true
+	u.s.BleedX, u.s.BleedY, u.s.CenterX, u.s.CenterY = "3", "3", true, true
 	u.pullAll()
 	u.changed()
 	waitFor(t, "the booklet", func() bool { return u.layout != nil && len(u.layout.Sheets) == 4 })
@@ -788,7 +789,7 @@ func findCheck(t *testing.T, u *ui, text string) *widget.Check {
 func TestPreviewTrimFollowsTheTurn(t *testing.T) {
 	u := newTestUI(t)
 	openAndWait(t, u, 2)
-	u.s.Bleed, u.s.Cols, u.s.Rows, u.s.Angle = "5", "1", "1", "90"
+	u.s.BleedX, u.s.BleedY, u.s.Cols, u.s.Rows, u.s.Angle = "5", "5", "1", "1", "90"
 	u.pullAll()
 	u.changed()
 	waitFor(t, "the layout", func() bool { return u.layout != nil && u.layout.Bleedx > 0 })
@@ -804,10 +805,10 @@ func TestPreviewTrimFollowsTheTurn(t *testing.T) {
 			end = fyne.NewPos(max(end.X, p.X), max(end.Y, p.Y))
 		}
 	}
-	// the page of 200x300 lies turned: the trim edge is 5mm inside 300x200 points
-	b := float32(10 * impose.PointsPerMM)
+	// the page of 200x300 lies turned: its trim edge is exactly 300x200, bleed only
+	// expands the tile around it, it never shrinks the trim line itself
 	w, h := end.X-box.X, end.Y-box.Y
-	if r, want := w/h, (300-b)/(200-b); r < want*0.99 || r > want*1.01 {
+	if r, want := w/h, float32(300.0/200.0); r < want*0.99 || r > want*1.01 {
 		t.Errorf("trim edge %vx%v, ratio %v want %v", w, h, r, want)
 	}
 	shot(t, u, "trim90")

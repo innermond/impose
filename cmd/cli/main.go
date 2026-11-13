@@ -102,6 +102,8 @@ func options() impose.Options {
 	o.Angle = angle
 
 	o.Bleedx, o.Bleedy = bleedx, bleedy
+	o.MergeBleed = mergebleed
+	o.TrimWidth, o.TrimHeight = trimw, trimh
 	o.Offx, o.Offy = offx, offy
 	o.Markw, o.Markh = markw, markh
 	o.NoCropmark = !showcropmark

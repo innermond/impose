@@ -8,6 +8,9 @@ type Placement struct {
 	W, H float64
 	// Angle is the rotation of the page, in degrees
 	Angle float64
+	// NearX, FarX, NearY, FarY are the bleed clipped away by MergeBleed on each side of
+	// the placement (left, right, top, bottom); 0 on an outer edge or when it is off.
+	NearX, FarX, NearY, FarY float64
 }
 
 // Line is a segment, in points, from the top left corner of the sheet.
@@ -30,6 +33,8 @@ type Layout struct {
 	Top, Right, Bottom, Left float64
 	// Bleedx and Bleedy are inside every page, around its trim edge.
 	Bleedx, Bleedy float64
+	// TrimWidth and TrimHeight override the detected trim size, 0 means none was given.
+	TrimWidth, TrimHeight float64
 	// Col and Row are the grid, CloneX and CloneY the clones of the grid.
 	Col, Row, CloneX, CloneY int
 	Sheets                   []Sheet

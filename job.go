@@ -59,6 +59,14 @@ type Options struct {
 	// PadBlank fills with blank pages at the end: a booklet up to a multiple of 4, a duplex grid up to an even number of sheets.
 	PadBlank bool
 
+	// TrimWidth, TrimHeight override the detected trim size, centered on the detected one.
+	// 0 keeps the file's own TrimBox, CropBox or MediaBox.
+	TrimWidth, TrimHeight float64
+
+	// MergeBleed halves the bleed at every internal grid boundary between neighboring
+	// cards, so the two halves sum to one full bleed; outer edges keep their full value.
+	MergeBleed bool
+
 	// cropmarks; Offx and Offy are measured from the trim edge, bleed is subtracted from them.
 	Bleedx, Bleedy float64
 	Offx, Offy     float64
@@ -125,13 +133,14 @@ func OpenSource(in io.ReadSeeker) (*Source, error) {
 
 // PageSize gives the size of the first page, all pages are assumed to have the same size,
 // expanded with bleed from its trim box or crop box.
-func (s *Source) PageSize(bleedx, bleedy float64) (w, h float64, err error) {
+func (s *Source) PageSize(bleedx, bleedy, trimw, trimh float64) (w, h float64, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.pageSize(bleedx, bleedy)
+	return s.pageSize(bleedx, bleedy, trimw, trimh)
 }
 
-func (s *Source) pageSize(bleedx, bleedy float64) (w, h float64, err error) {
+func (s *Source) pageSize(bleedx, bleedy, trimw, trimh float64) (w, h float64, err error) {
+	s.rd.SetTrim(trimw, trimh)
 	s.rd.SetBleed(bleedx, bleedy)
 	page, err := s.rd.GetPage(1)
 	if err != nil {
@@ -144,14 +153,53 @@ func (s *Source) pageSize(bleedx, bleedy float64) (w, h float64, err error) {
 	return bbox.Urx - bbox.Llx, bbox.Ury - bbox.Lly, nil
 }
 
+// PageBoxes are the sizes, in points, of the first page's boxes after SetBleed(bleedx, bleedy).
+// TrimBox is always set (reader.go's AdjustMediaBox falls back to CropBox, then to the page's
+// own original MediaBox, when the file does not declare a TrimBox). HasCrop is false when the
+// file does not declare a CropBox at all.
+type PageBoxes struct {
+	MediaW, MediaH float64
+	TrimW, TrimH   float64
+	CropW, CropH   float64
+	HasCrop        bool
+}
+
+// Boxes gives the MediaBox, TrimBox and CropBox of the first page, for display: it does not
+// affect, and is not affected by, the imposition itself.
+func (s *Source) Boxes(bleedx, bleedy, trimw, trimh float64) (PageBoxes, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rd.SetTrim(trimw, trimh)
+	s.rd.SetBleed(bleedx, bleedy)
+	page, err := s.rd.GetPage(1)
+	if err != nil {
+		return PageBoxes{}, err
+	}
+	mb, err := page.GetMediaBox()
+	if err != nil {
+		return PageBoxes{}, err
+	}
+	pb := PageBoxes{MediaW: mb.Urx - mb.Llx, MediaH: mb.Ury - mb.Lly}
+	if tb := page.TrimBox; tb != nil {
+		pb.TrimW, pb.TrimH = tb.Urx-tb.Llx, tb.Ury-tb.Lly
+	}
+	if cb, err := page.GetBox("CropBox"); err == nil {
+		pb.CropW, pb.CropH, pb.HasCrop = cb.Urx-cb.Llx, cb.Ury-cb.Lly, true
+	}
+	return pb, nil
+}
+
 // PagePDF makes a pdf of one page of the file, num counts from 1, cut as the imposition cuts it:
 // its trim or crop box expanded with bleed. It is fit for rendering a preview of the page.
-func (s *Source) PagePDF(num int, bleedx, bleedy float64) ([]byte, error) {
+// nearx, farx, neary, fary clip away bleed on each side, as MergeBleed would for a placement;
+// 0 keeps the page at its full, symmetric bleed.
+func (s *Source) PagePDF(num int, bleedx, bleedy, trimw, trimh, nearx, farx, neary, fary float64) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if num < 1 || num > s.NumPages {
 		return nil, fmt.Errorf("page %d out of 1-%d", num, s.NumPages)
 	}
+	s.rd.SetTrim(trimw, trimh)
 	s.rd.SetBleed(bleedx, bleedy)
 	bk, err := s.rd.BlockFromPage(num)
 	if err != nil {
@@ -159,9 +207,13 @@ func (s *Source) PagePDF(num int, bleedx, bleedy float64) ([]byte, error) {
 	}
 	// the page is upright, as its size is measured
 	bk.SetAngle(0)
-	bk.SetPos(0, 0)
+	w, h := bk.Width()-nearx-farx, bk.Height()-neary-fary
+	// Clip's y is the block's own native, bottom-up PDF axis, unlike SetPos's top-down y:
+	// the near (top) amount is skipped by SetPos, the far (bottom) amount by Clip's offset.
+	bk.Clip(nearx, fary, w, h, false)
+	bk.SetPos(-nearx, -neary)
 	c := creator.New()
-	c.SetPageSize(creator.PageSize{bk.Width(), bk.Height()})
+	c.SetPageSize(creator.PageSize{w, h})
 	c.NewPage()
 	if err := c.Draw(bk); err != nil {
 		return nil, err
@@ -227,18 +279,26 @@ func newJob(ctx context.Context, o Options, numPages int, w, h float64, rd *PdfR
 
 	angle := o.Angle
 	beSwitched := angle == 90.0 || angle == -90 || angle == 270 || angle == -270
+	// merging bleed shrinks the grid's pitch, so it only makes sense for a plain
+	// Col x Row grid (possibly cloned): booklet pairs pages across a fold, and a rotated
+	// page's own axes no longer line up with the sheet's.
+	// 180/-180 is excluded too: Clip's y-axis convention (bottom-up, unlike SetPos's
+	// top-down) makes the correct near/far mapping for a half-turned page unverified.
+	mergeBleed := o.MergeBleed && o.Mode != ModeBooklet && angle == 0
 
 	width, height := o.Width, o.Height
 	if o.Autopage {
 		autopadding := o.Autopadding
-		clonepadxWidth := o.ClonePadX * float64(clonex-1)
-		clonepadyHeight := o.ClonePadY * float64(cloney-1)
 		pw, ph := w, h
+		bleedx, bleedy := o.Bleedx, o.Bleedy
 		if beSwitched {
 			pw, ph = h, w
+			bleedx, bleedy = bleedy, bleedx
 		}
-		width = o.Left + clonepadxWidth + float64(clonex)*float64(col)*pw + o.Right + 2*extw + 2*autopadding
-		height = o.Top + clonepadyHeight + float64(cloney)*float64(row)*ph + o.Bottom + 2*exth + 2*autopadding
+		pageswidth := gridSpan(col*clonex, col, o.ClonePadX, pw, bleedx, mergeBleed)
+		pagesheight := gridSpan(row*cloney, row, o.ClonePadY, ph, bleedy, mergeBleed)
+		width = o.Left + pageswidth + o.Right + 2*extw + 2*autopadding
+		height = o.Top + pagesheight + o.Bottom + 2*exth + 2*autopadding
 	}
 	if width <= 0 || height <= 0 {
 		return nil, errors.New("sheet size is needed")
@@ -257,21 +317,24 @@ func newJob(ctx context.Context, o Options, numPages int, w, h float64, rd *PdfR
 			Bottom: o.Bottom,
 			Left:   o.Left,
 		}},
-		Small:     &SmallBox{Box: &Box{Width: w, Height: h}, Angle: angle},
-		Col:       col,
-		Row:       row,
-		CloneX:    clonex,
-		CloneY:    cloney,
-		ClonePadX: o.ClonePadX,
-		ClonePadY: o.ClonePadY,
-		Num:       np,
-		Creator:   c,
-		Reader:    rd,
-		Cropmark:  nil,
-		Outline:   o.Outline,
-		DeltaPos:  0.0,
-		Ctx:       ctx,
-		Dry:       dry,
+		Small:      &SmallBox{Box: &Box{Width: w, Height: h}, Angle: angle},
+		Col:        col,
+		Row:        row,
+		CloneX:     clonex,
+		CloneY:     cloney,
+		ClonePadX:  o.ClonePadX,
+		ClonePadY:  o.ClonePadY,
+		Bleedx:     o.Bleedx,
+		Bleedy:     o.Bleedy,
+		MergeBleed: mergeBleed,
+		Num:        np,
+		Creator:    c,
+		Reader:     rd,
+		Cropmark:   nil,
+		Outline:    o.Outline,
+		DeltaPos:   0.0,
+		Ctx:        ctx,
+		Dry:        dry,
 	}
 	angled := false
 	if beSwitched {
@@ -338,7 +401,7 @@ func Run(ctx context.Context, o Options, src *Source, out io.Writer, progress fu
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
-	w, h, err := src.pageSize(o.Bleedx, o.Bleedy)
+	w, h, err := src.pageSize(o.Bleedx, o.Bleedy, o.TrimWidth, o.TrimHeight)
 	if err != nil {
 		return err
 	}
@@ -354,7 +417,7 @@ func Run(ctx context.Context, o Options, src *Source, out io.Writer, progress fu
 
 // Plan works out where every page goes without drawing any pdf, it is fast and fit for previews.
 func Plan(ctx context.Context, o Options, src *Source) (*Layout, error) {
-	w, h, err := src.PageSize(o.Bleedx, o.Bleedy)
+	w, h, err := src.PageSize(o.Bleedx, o.Bleedy, o.TrimWidth, o.TrimHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -389,6 +452,7 @@ func Plan(ctx context.Context, o Options, src *Source) (*Layout, error) {
 		Width: big.Width, Height: big.Height,
 		Top: big.Top, Right: big.Right, Bottom: big.Bottom, Left: big.Left,
 		Bleedx: o.Bleedx, Bleedy: o.Bleedy,
+		TrimWidth: o.TrimWidth, TrimHeight: o.TrimHeight,
 		Col: j.bb.Col, Row: j.bb.Row, CloneX: j.bb.CloneX, CloneY: j.bb.CloneY,
 		Sheets: sheets,
 	}, nil
