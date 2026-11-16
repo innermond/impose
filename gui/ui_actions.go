@@ -29,6 +29,85 @@ func (u *ui) pullAll() {
 	}
 }
 
+// suggestCreep refreshes Creep from Thickness, the source's page count and the current
+// bleed, unless Creep already holds a value the user typed in directly rather than one
+// suggestCreep put there itself - that value takes precedence and is left alone.
+func (u *ui) suggestCreep() {
+	if u.src == nil {
+		return
+	}
+	cur := strings.TrimSpace(u.s.Creep)
+	if cur != "" && cur != u.lastSuggestedCreep {
+		return
+	}
+	up := u.unitPoints()
+	p := &parser{unit: up}
+	thickness := p.length("thickness", u.s.Thickness)
+	bleedx := p.length("bleed x", u.s.BleedX)
+	bleedy := p.length("bleed y", u.s.BleedY)
+	suggested := impose.SuggestedCreep(thickness, u.src.NumPages, bleedx, bleedy)
+	u.s.Creep = formatNumber(suggested / up)
+	u.lastSuggestedCreep = u.s.Creep
+	u.pullAll()
+	u.changed()
+}
+
+// suggestBleed refreshes BleedX/BleedY from the open file's own suggestion (its BleedBox,
+// or half the margin its original content already has past TrimBox), unless a field
+// already holds a value the user typed in directly rather than one suggestBleed put there
+// itself - that value takes precedence and is left alone, per axis independently.
+func (u *ui) suggestBleed() {
+	if u.src == nil {
+		return
+	}
+	up := u.unitPoints()
+	p := &parser{unit: up}
+	trimw := p.length("trim width", u.s.TrimW)
+	trimh := p.length("trim height", u.s.TrimH)
+	sx, sy, err := u.src.SuggestedBleed(trimw, trimh)
+	if err != nil {
+		return
+	}
+	changed := false
+	if cur := strings.TrimSpace(u.s.BleedX); cur == "" || cur == u.lastSuggestedBleedX {
+		u.s.BleedX = formatNumber(sx / up)
+		u.lastSuggestedBleedX = u.s.BleedX
+		changed = true
+	}
+	if cur := strings.TrimSpace(u.s.BleedY); cur == "" || cur == u.lastSuggestedBleedY {
+		u.s.BleedY = formatNumber(sy / up)
+		u.lastSuggestedBleedY = u.s.BleedY
+		changed = true
+	}
+	if changed {
+		u.pullAll()
+		u.changed()
+	}
+}
+
+// updateCreepInfo refreshes creepInfo from the current Creep and the open file's page
+// count: Booklet's step formula applies this per-page shift to one of the outermost
+// sheet's two mate pages (the other gets its negative) - twice that apart from each other.
+func (u *ui) updateCreepInfo() {
+	if u.src == nil {
+		u.creepInfo.SetText("")
+		return
+	}
+	sheets := (u.src.NumPages + 3) / 4
+	if sheets <= 1 {
+		u.creepInfo.SetText("")
+		return
+	}
+	up := u.unitPoints()
+	p := &parser{unit: up}
+	creep := p.length("creep", u.s.Creep)
+	perPage := creep * 4 * float64(sheets-1) / float64(sheets)
+	perSheet := 2 * perPage
+	u.creepInfo.SetText(fmt.Sprintf(
+		"Outermost sheet: %s%s per page, %s%s per sheet (twice that, the two faces moving apart)",
+		formatNumber(perPage/up), u.s.Unit, formatNumber(perSheet/up), u.s.Unit))
+}
+
 // changed is called after every change of the settings: the preview and the saved settings follow.
 func (u *ui) changed() {
 	if u.loading {
@@ -287,13 +366,7 @@ func (u *ui) openFileNote(path, note string) {
 				u.file.Close()
 			}
 			u.file, u.src, u.srcPath = f, src, path
-			if bx, by := strings.TrimSpace(u.s.BleedX), strings.TrimSpace(u.s.BleedY); bx == "" || bx == "0" || by == "" || by == "0" {
-				if sx, sy, err := src.SuggestedBleed(0, 0); err == nil && (sx > 0 || sy > 0) {
-					up := u.unitPoints()
-					u.s.BleedX, u.s.BleedY = formatNumber(sx/up), formatNumber(sy/up)
-					u.pullAll()
-				}
-			}
+			u.suggestBleed()
 			u.prev.thumbs.setSource(src)
 			u.store.Dir = filepath.Dir(path)
 			u.store.remember(path)
@@ -307,6 +380,7 @@ func (u *ui) openFileNote(path, note string) {
 			u.fileLabel.SetText(label)
 			u.win.SetTitle("impose - " + filepath.Base(path))
 			u.genBtn.Enable()
+			u.updateCreepInfo()
 			u.refreshCommand()
 			u.replan()
 		})

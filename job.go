@@ -77,11 +77,22 @@ type Options struct {
 	// Outline draws a rectangle around every page.
 	Outline bool
 
-	// Creep is the thickness of the paper in a booklet, bounded by Thickness and by
-	// Bleedx/Bleedy so it never pushes content past its own printed bleed.
+	// Creep is Booklet's shingling scale, not itself a per-page or per-sheet value: it is
+	// the single input Booklet derives each sheet's trim-edge displacement from. All 4
+	// pages of one physical sheet share that displacement's magnitude (mirrored +/- across
+	// the fold); it grows by a constant step from the center sheet (0) outward. Thickness,
+	// via SuggestedCreep, picks Creep so that step equals twice one sheet's own thickness
+	// exactly - a folded sheet is 2 plies of paper at its own spine, and that is the bulk
+	// each sheet nested further out has to wrap around; newJob further bounds Creep
+	// (safeCreep) by Bleedx/Bleedy so it never pushes content past its own printed bleed.
 	Creep float64
-	// Thickness is one sheet's paper thickness; with Mode Booklet it bounds how far Creep
-	// may push a page, together with Bleedx/Bleedy. 0 means no thickness-based bound.
+	// Thickness is one sheet's own paper thickness (what calipers measure on the flat,
+	// unfolded stock), the physical quantity that accumulates sheet by sheet - doubled,
+	// since each folded sheet is 2 plies at its spine - as a booklet is nested and folded.
+	// Unlike Creep, a derived, whole-booklet scaling input, Thickness is a physical
+	// measurement. With Mode Booklet, SuggestedCreep/safeCreep use it to derive or bound
+	// Creep so each sheet's displacement grows by exactly twice Thickness per sheet away
+	// from the center. 0 means no thickness-based bound.
 	Thickness float64
 }
 

@@ -9,27 +9,33 @@ import (
 	"github.com/innermond/impose/reflow"
 )
 
-// safeCreep bounds creep so a booklet's shingling never moves a page out past its own
-// printed bleed (exposing unintended area) nor past what numPages pages of sheets this
-// thickness thick would physically need: thickness times the number of nested sheets
-// (numPages/4, rounded up) minus the outermost one, which carries no buildup. thickness
-// <= 0 skips that bound; bleedx/bleedy <= 0 means no bleed margin, so no safe creep at all.
+// SuggestedCreep gives the largest creep safe for numPages pages of sheets this thickness
+// thick: twice the thickness - a folded sheet is 2 plies at its own spine - times the
+// number of nested sheets (numPages/4, rounded up) minus the outermost one, which wraps
+// around the others' bulk but adds none of its own, further bounded so it never moves a
+// page out past its own printed bleed (exposing unintended area). thickness <= 0 skips
+// the thickness bound; bleedx/bleedy <= 0 means no bleed margin, so no safe creep at all.
 //
-// The limit is a displacement, but creep is a parameter Booklet's creep-step formula
+// The bound is a displacement, but creep is a parameter Booklet's creep-step formula
 // (dx := 4*creep/len(pxp), stepped by page index) scales up: the outermost sheet's pages
 // actually move by creep*4*(sheets-1)/sheets, not by creep itself. That factor is inverted
 // here so the bound still holds for the real, applied displacement.
-func safeCreep(creep, thickness float64, numPages int, bleedx, bleedy float64) float64 {
+func SuggestedCreep(thickness float64, numPages int, bleedx, bleedy float64) float64 {
 	sheets := (numPages + 3) / 4
 	if sheets <= 1 {
 		return 0
 	}
 	limit := min(bleedx, bleedy)
 	if thickness > 0 {
-		limit = min(limit, thickness*float64(sheets-1))
+		limit = min(limit, 2*thickness*float64(sheets-1))
 	}
 	factor := 4 * float64(sheets-1) / float64(sheets)
-	return min(creep, limit/factor)
+	return limit / factor
+}
+
+// safeCreep bounds a requested creep by SuggestedCreep's limit.
+func safeCreep(creep, thickness float64, numPages int, bleedx, bleedy float64) float64 {
+	return min(creep, SuggestedCreep(thickness, numPages, bleedx, bleedy))
 }
 
 func (bb *Boxes) Booklet(

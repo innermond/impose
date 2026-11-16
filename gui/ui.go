@@ -55,6 +55,8 @@ type ui struct {
 	mediaBoxLabel *widget.Label
 	trimBoxLabel  *widget.Label
 	cropBoxLabel  *widget.Label
+	// creepInfo shows the outermost sheet's real shift for the current Creep, per page and per sheet
+	creepInfo *widget.Label
 	cmd           *widget.Entry
 	genBtn        *widget.Button
 	cancelBtn     *widget.Button
@@ -73,6 +75,14 @@ type ui struct {
 	pull []func()
 	// loading is true while the widgets are changed by the program, not by the user
 	loading bool
+	// lastSuggestedCreep is what suggestCreep last put in Creep, to tell its own
+	// suggestion apart from a value the user typed in directly: a Creep that still
+	// matches it is free to be replaced by the next suggestion, one that doesn't is the
+	// user's and is left alone.
+	lastSuggestedCreep string
+	// lastSuggestedBleedX, lastSuggestedBleedY are what suggestBleed last put in
+	// BleedX/BleedY, same precedence rule as lastSuggestedCreep, per axis.
+	lastSuggestedBleedX, lastSuggestedBleedY string
 
 	mu         sync.Mutex
 	timer      *time.Timer
@@ -172,11 +182,16 @@ func (u *ui) build() {
 	u.forms["flip"] = widget.NewForm()
 
 	// marks
+	trimW := u.entry(&s.TrimW, "auto")
+	trimH := u.entry(&s.TrimH, "auto")
+	onTrimW, onTrimH := trimW.OnChanged, trimH.OnChanged
+	trimW.OnChanged = func(t string) { onTrimW(t); u.suggestBleed() }
+	trimH.OnChanged = func(t string) { onTrimH(t); u.suggestBleed() }
 	u.forms["marks"] = widget.NewForm(
 		item("", u.check("Cropmarks", &s.Marks, nil)),
 		item("Bleed x, y", pair(u.entry(&s.BleedX, "0"), u.entry(&s.BleedY, "0"))),
 		item("", u.check("Merge bleed at shared edges", &s.MergeBleed, nil)),
-		item("Trim override w, h", pair(u.entry(&s.TrimW, "auto"), u.entry(&s.TrimH, "auto"))),
+		item("Trim override w, h", pair(trimW, trimH)),
 		item("Distance from trim", u.entry(&s.Offset, "")),
 		item("Mark size", u.entry(&s.MarkSize, "")),
 		item("Only on sheets", u.entry(&s.MarkPages, "all, ex: 1,3")),
@@ -187,6 +202,7 @@ func (u *ui) build() {
 	u.mediaBoxLabel = widget.NewLabel("")
 	u.trimBoxLabel = widget.NewLabel("")
 	u.cropBoxLabel = widget.NewLabel("")
+	u.creepInfo = widget.NewLabel("")
 	u.forms["boxes"] = widget.NewForm(
 		item("MediaBox", u.mediaBoxLabel),
 		item("TrimBox", u.trimBoxLabel),
@@ -369,11 +385,13 @@ func (u *ui) applyMode() {
 		flip.Items = []*widget.FormItem{
 			item("Creep", u.cached("creep", &s.Creep, "0, up to the bleed")),
 			item("Thickness", u.cached("thickness", &s.Thickness, "0, one sheet's paper thickness")),
+			item("", u.creepInfo),
 			item("Back sheets", container.NewHBox(u.cachedCheck("flip", "Flip", &s.Flip), u.cachedCheck("reverse", "Reverse", &s.Reverse))),
 			item("Turn face sheets", u.cached("turn", &s.Turn, "degrees, ex: 180")),
 			item("", u.cachedCheck("padblank", "Add blank pages to reach a multiple of 4", &s.PadBlank)),
 		}
 		title["grid"], title["flip"] = "Grid & clones", "Booklet"
+		u.updateCreepInfo()
 	default:
 		grid.Items = []*widget.FormItem{cols, clones, pads}
 		pages.Items = []*widget.FormItem{
@@ -420,6 +438,21 @@ func (u *ui) cached(key string, p *string, placeholder string) fyne.CanvasObject
 	u.cache[key] = e
 	if key == "weld" && !u.s.Duplex {
 		e.Disable()
+	}
+	if key == "creep" {
+		onCreep := e.OnChanged
+		e.OnChanged = func(t string) {
+			onCreep(t)
+			u.updateCreepInfo()
+		}
+	}
+	if key == "thickness" {
+		onThickness := e.OnChanged
+		e.OnChanged = func(t string) {
+			onThickness(t)
+			u.suggestCreep()
+			u.updateCreepInfo()
+		}
 	}
 	return e
 }

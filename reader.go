@@ -88,12 +88,11 @@ func (r *PdfReader) resolveTrimBox(num int) (*model.PdfRectangle, error) {
 }
 
 // SuggestedBleed gives the bleed the page itself suggests, per axis: from its own BleedBox
-// if the file declares one (BleedBox margin past TrimBox), else from how far its original,
-// undeclared content already extends past the trim edge. It takes the smaller of the two
-// opposite margins on each axis, so the suggestion never claims more bleed than the
-// tighter side actually has - using the larger side would mean content on the tighter side
-// gets expanded past where real artwork exists. 0 means the file suggests no usable bleed
-// on that axis.
+// if the file declares one, else from how far its original, undeclared content already
+// extends past the trim edge. Each axis is (outer size - TrimBox size) * 0.5 - half the
+// total margin, split evenly on both sides - where "outer" is the BleedBox when the file
+// has one, else the page's original MediaBox. 0 means the file suggests no usable bleed on
+// that axis.
 func (r *PdfReader) SuggestedBleed(num int) (dx, dy float64, err error) {
 	if r.pg == nil {
 		return 0, 0, errors.New("No page. Need to call GetPage(num) before")
@@ -110,8 +109,8 @@ func (r *PdfReader) SuggestedBleed(num int) (dx, dy float64, err error) {
 		}
 		bbox = &orig
 	}
-	dx = min(tbox.Llx-bbox.Llx, bbox.Urx-tbox.Urx)
-	dy = min(tbox.Lly-bbox.Lly, bbox.Ury-tbox.Ury)
+	dx = 0.5 * ((bbox.Urx - bbox.Llx) - (tbox.Urx - tbox.Llx))
+	dy = 0.5 * ((bbox.Ury - bbox.Lly) - (tbox.Ury - tbox.Lly))
 	return max(dx, 0), max(dy, 0), nil
 }
 

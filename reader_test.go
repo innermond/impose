@@ -43,9 +43,9 @@ func TestSuggestedBleedFromBleedBox(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// the tighter side wins: min(10-7, 197-190) = 3, min(10-6, 294-290) = 4
-	if dx != 3 || dy != 4 {
-		t.Errorf("suggested bleed %vx%v, want 3x4", dx, dy)
+	// half the total margin per axis: 0.5*(190-180) = 5, 0.5*(288-280) = 4
+	if dx != 5 || dy != 4 {
+		t.Errorf("suggested bleed %vx%v, want 5x4", dx, dy)
 	}
 }
 

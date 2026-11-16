@@ -238,6 +238,113 @@ func TestModes(t *testing.T) {
 	shot(t, u, "duplex")
 }
 
+func TestCreepSuggestedFromThickness(t *testing.T) {
+	u := newTestUI(t)
+	openAndWait(t, u, 8)
+	u.modes.SetSelected(modeBooklet)
+	waitFor(t, "booklet", func() bool { return u.layout != nil })
+	u.s.BleedX, u.s.BleedY = "5", "5"
+
+	typeIn(t, u, "thickness", "0.15")
+	want := formatNumber(impose.SuggestedCreep(0.15, 8, 5, 5))
+	if u.s.Creep != want {
+		t.Errorf("creep %q, want the suggestion %q", u.s.Creep, want)
+	}
+	if got := u.cache["creep"].(*widget.Entry).Text; got != want {
+		t.Errorf("creep entry shows %q, want %q", got, want)
+	}
+
+	// typing a creep directly makes it take precedence over further suggestions
+	typeIn(t, u, "creep", "2")
+	typeIn(t, u, "thickness", "0.3")
+	if u.s.Creep != "2" {
+		t.Errorf("creep %q, want the user's own 2 kept", u.s.Creep)
+	}
+
+	// clearing creep asks for a suggestion again
+	typeIn(t, u, "creep", "")
+	typeIn(t, u, "thickness", "0.45")
+	want2 := formatNumber(impose.SuggestedCreep(0.45, 8, 5, 5))
+	if u.s.Creep != want2 {
+		t.Errorf("creep %q, want the new suggestion %q", u.s.Creep, want2)
+	}
+}
+
+func TestCreepInfoShowsPerPageAndPerSheet(t *testing.T) {
+	u := newTestUI(t)
+	openAndWait(t, u, 16) // 4 sheets
+	u.modes.SetSelected(modeBooklet)
+	waitFor(t, "booklet", func() bool { return u.layout != nil })
+
+	typeIn(t, u, "creep", "0.3")
+	// Booklet's step formula: outermost sheet's per-page shift is creep*4*(sheets-1)/sheets,
+	// the two mate pages moving apart by twice that.
+	sheets := 4
+	perPage := 0.3 * 4 * float64(sheets-1) / float64(sheets)
+	perSheet := 2 * perPage
+	got := u.creepInfo.Text
+	if !strings.Contains(got, formatNumber(perPage)) || !strings.Contains(got, formatNumber(perSheet)) {
+		t.Errorf("creep info %q, want it to mention per-page %v and per-sheet %v", got, perPage, perSheet)
+	}
+
+	// a 4-page (single sheet) file has no outermost/inner sheet distinction to show
+	openAndWait(t, u, 4)
+	waitFor(t, "single sheet", func() bool { return u.src != nil && u.src.NumPages == 4 })
+	if u.creepInfo.Text != "" {
+		t.Errorf("single-sheet creep info %q, want empty", u.creepInfo.Text)
+	}
+}
+
+// trimmedPDFPath writes trimmedPDF's bytes to a temp file and gives its path.
+func trimmedPDFPath(t *testing.T, n int) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "trimmed.pdf")
+	if err := os.WriteFile(path, trimmedPDF(t, n), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestBleedSuggestedFromFile(t *testing.T) {
+	u := newTestUI(t)
+	// trimmedPDF's MediaBox is 200x300, TrimBox 180x280 centered: a 10pt margin on every
+	// side, no BleedBox declared, so the suggestion falls back to that margin.
+	u.openFile(trimmedPDFPath(t, 2))
+	waitFor(t, "the pdf", func() bool { return u.src != nil })
+
+	up := u.unitPoints()
+	sx, sy, err := u.src.SuggestedBleed(0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := formatNumber(sx / up)
+	if u.s.BleedX != want || u.s.BleedY != want {
+		t.Errorf("bleed %q,%q, want %q,%q", u.s.BleedX, u.s.BleedY, want, formatNumber(sy/up))
+	}
+
+	// typing a bleed x directly makes it take precedence over further suggestions, bleed y
+	// (left alone) keeps following the suggestion. TrimW/TrimH are plain entries (always
+	// shown, not mode-dependent), so they are not in u.cache like typeIn expects; setting
+	// them and calling suggestBleed directly exercises the same path their own OnChanged
+	// wrapper (gui/ui.go) calls.
+	u.s.BleedX = "7"
+	u.s.TrimW, u.s.TrimH = "150", "150"
+	u.suggestBleed()
+	if u.s.BleedX != "7" {
+		t.Errorf("bleed x %q, want the user's own 7 kept", u.s.BleedX)
+	}
+	wantY := formatNumber(func() float64 {
+		_, sy, err := u.src.SuggestedBleed(150*up, 150*up)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sy
+	}() / up)
+	if u.s.BleedY != wantY {
+		t.Errorf("bleed y %q, want the new suggestion %q", u.s.BleedY, wantY)
+	}
+}
+
 func TestUnitFollowsLengths(t *testing.T) {
 	u := newTestUI(t)
 	u.unit.SetSelected("in")
