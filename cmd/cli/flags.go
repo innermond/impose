@@ -51,6 +51,10 @@ var (
 	showcropmarkPages      markPages
 	bookletMode            bool
 	creep                  float64
+	thickness              float64
+
+	// seen holds the flags given in the command line, the rest kept their defaults.
+	seen map[string]bool
 	outline                bool
 
 	memprofile string
@@ -251,6 +255,7 @@ func param() error {
 		bookletMode = true
 		// specific flag
 		flagset.Float64Var(&creep, "creep", 0.0, "adjust imposition to deal with sheet's tickness")
+		flagset.Float64Var(&thickness, "thickness", 0.0, "one sheet's paper thickness, bounds how far creep may push a page together with bleed")
 		flagset.Parse(spec)
 	default:
 		same, spec = clivide(os.Args[1:], commonFlags())
@@ -289,7 +294,7 @@ func param() error {
 	}
 
 	// flags that were given in the command line, the rest keep their defaults
-	seen := map[string]bool{}
+	seen = map[string]bool{}
 	flagset.Visit(func(f *flag.Flag) { seen[f.Name] = true })
 
 	// all lengths to points; defaults are in millimetres, values given by user are in -unit
@@ -305,7 +310,7 @@ func param() error {
 		"bleed": &bleed, "bleedx": &bleedx, "bleedy": &bleedy,
 		"trimw": &trimw, "trimh": &trimh,
 		"marksize": &marksize, "markw": &markw, "markh": &markh,
-		"autopadding": &autopadding, "creep": &creep,
+		"autopadding": &autopadding, "creep": &creep, "thickness": &thickness,
 	}
 	for name, length := range lengths {
 		if seen[name] {
@@ -344,10 +349,6 @@ func param() error {
 	centery = centery || center
 	showcropmark = !nocropmark
 
-	// creep cannot exceed the bleed
-	if bookletMode && creep > bleedx {
-		creep = bleedx
-	}
 	if !autopage {
 		autopadding = 0.0
 	}

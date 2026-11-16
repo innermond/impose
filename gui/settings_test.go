@@ -54,8 +54,10 @@ func TestOptionsModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.Mode != impose.ModeBooklet || !near(o.Creep, 1*creator.PPMM) {
-		t.Errorf("creep should be limited by bleed: %+v", o.Creep)
+	// Settings.options() passes creep through as typed; impose's core library is what
+	// bounds it by Bleedx/Bleedy (and Thickness) when the imposition is actually built.
+	if o.Mode != impose.ModeBooklet || !near(o.Creep, 3*creator.PPMM) {
+		t.Errorf("creep: %+v", o.Creep)
 	}
 
 	s = defaultSettings()

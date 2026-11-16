@@ -287,6 +287,13 @@ func (u *ui) openFileNote(path, note string) {
 				u.file.Close()
 			}
 			u.file, u.src, u.srcPath = f, src, path
+			if bx, by := strings.TrimSpace(u.s.BleedX), strings.TrimSpace(u.s.BleedY); bx == "" || bx == "0" || by == "" || by == "0" {
+				if sx, sy, err := src.SuggestedBleed(0, 0); err == nil && (sx > 0 || sy > 0) {
+					up := u.unitPoints()
+					u.s.BleedX, u.s.BleedY = formatNumber(sx/up), formatNumber(sy/up)
+					u.pullAll()
+				}
+			}
 			u.prev.thumbs.setSource(src)
 			u.store.Dir = filepath.Dir(path)
 			u.store.remember(path)

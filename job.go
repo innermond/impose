@@ -77,8 +77,12 @@ type Options struct {
 	// Outline draws a rectangle around every page.
 	Outline bool
 
-	// Creep is the thickness of the paper in a booklet, limited by Bleedx by the caller.
+	// Creep is the thickness of the paper in a booklet, bounded by Thickness and by
+	// Bleedx/Bleedy so it never pushes content past its own printed bleed.
 	Creep float64
+	// Thickness is one sheet's paper thickness; with Mode Booklet it bounds how far Creep
+	// may push a page, together with Bleedx/Bleedy. 0 means no thickness-based bound.
+	Thickness float64
 }
 
 // DefaultOptions are the defaults of the command line, in points.
@@ -151,6 +155,19 @@ func (s *Source) pageSize(bleedx, bleedy, trimw, trimh float64) (w, h float64, e
 		return 0, 0, err
 	}
 	return bbox.Urx - bbox.Llx, bbox.Ury - bbox.Lly, nil
+}
+
+// SuggestedBleed gives the bleed the file's first page suggests (reader.go's
+// PdfReader.SuggestedBleed), after SetTrim(trimw, trimh).
+func (s *Source) SuggestedBleed(trimw, trimh float64) (dx, dy float64, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rd.SetTrim(trimw, trimh)
+	s.rd.SetBleed(0, 0)
+	if _, err := s.rd.GetPage(1); err != nil {
+		return 0, 0, err
+	}
+	return s.rd.SuggestedBleed(1)
 }
 
 // PageBoxes are the sizes, in points, of the first page's boxes after SetBleed(bleedx, bleedy).
@@ -234,6 +251,8 @@ type job struct {
 	// bookletCrop tells cropmarks are made for a booklet
 	bookletCrop bool
 	extw, exth  float64
+	// creep is o.Creep bounded by safeCreep, used in place of o.Creep for ModeBooklet.
+	creep float64
 }
 
 func newJob(ctx context.Context, o Options, numPages int, w, h float64, rd *PdfReader, dry bool) (*job, error) {
@@ -363,7 +382,11 @@ func newJob(ctx context.Context, o Options, numPages int, w, h float64, rd *PdfR
 		return nil, fmt.Errorf("%d rows do not fit", bb.Row)
 	}
 
-	j := &job{o: o, bb: bb, pags: pags, bookletCrop: o.Mode == ModeBooklet, extw: extw, exth: exth}
+	creep := o.Creep
+	if o.Mode == ModeBooklet {
+		creep = safeCreep(o.Creep, o.Thickness, np, o.Bleedx, o.Bleedy)
+	}
+	j := &job{o: o, bb: bb, pags: pags, bookletCrop: o.Mode == ModeBooklet, extw: extw, exth: exth, creep: creep}
 	if o.NoCropmark {
 		j.marks = nil
 	} else {
@@ -384,7 +407,7 @@ func (j *job) cycle(progress func(int)) error {
 	case ModeRepeat:
 		return bb.Repeat(j.pags, o.Turn, j.marks, progress)
 	case ModeBooklet:
-		return bb.Booklet(j.pags, o.Creep, o.Flip, o.Reverse, o.PadBlank, o.Turn, j.marks, progress)
+		return bb.Booklet(j.pags, j.creep, o.Flip, o.Reverse, o.PadBlank, o.Turn, j.marks, progress)
 	}
 	flow := o.Flow
 	if len(flow) == 0 {

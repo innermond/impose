@@ -37,7 +37,7 @@ type Settings struct {
 	Pages, Flow                string
 	Duplex, Flip, Reverse      bool
 	PadBlank                   bool
-	Weld, Turn, Creep          string
+	Weld, Turn, Creep, Thickness string
 	Marks                      bool
 	BleedX, BleedY             string
 	MergeBleed                 bool
@@ -52,7 +52,7 @@ func (s *Settings) lengthFields() []*string {
 	return []*string{
 		&s.Width, &s.Height, &s.Autopadding,
 		&s.Top, &s.Right, &s.Bottom, &s.Left,
-		&s.PadX, &s.PadY, &s.Creep,
+		&s.PadX, &s.PadY, &s.Creep, &s.Thickness,
 		&s.BleedX, &s.BleedY, &s.TrimW, &s.TrimH, &s.Offset, &s.MarkSize,
 	}
 }
@@ -212,7 +212,9 @@ func (s Settings) options() (impose.Options, error) {
 		o.Flow = p.ints("flow", s.Flow)
 		o.Duplex = s.Duplex
 		o.Weld = p.count("weld", s.Weld, 1)
-		o.PadBlank = s.PadBlank
+		// a grid only pads to fill blank pages when duplexed; a non-duplex grid has no
+		// even-sheet-count constraint for padding to satisfy.
+		o.PadBlank = s.PadBlank && s.Duplex
 	}
 	if o.Mode != impose.ModeRepeat {
 		o.Flip, o.Reverse = s.Flip, s.Reverse
@@ -238,8 +240,7 @@ func (s Settings) options() (impose.Options, error) {
 
 	if o.Mode == impose.ModeBooklet {
 		o.Creep = p.length("creep", s.Creep)
-		// creep cannot exceed the bleed
-		o.Creep = min(o.Creep, o.Bleedx)
+		o.Thickness = p.length("thickness", s.Thickness)
 	}
 	if p.err != nil {
 		return impose.Options{}, p.err

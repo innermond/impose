@@ -58,14 +58,12 @@ func transformMediaBox(llx, lly, urx, ury float64, rotation int64) (float64, flo
 	}
 }
 
-func (r *PdfReader) AdjustMediaBox(num int) error {
-	if r.pg == nil {
-		return errors.New("No page. Need to call GetPage(num) before")
-	}
-	// TODO involve BleedBox
-	// the trim box is the page's final, physically cut-off size: TrimBox if the file
-	// declares one, else CropBox, else the page's own original MediaBox (nothing more
-	// specific is known, so the whole page is taken as the trim)
+// resolveTrimBox gives the page's final, physically cut-off size: TrimBox if the file
+// declares one, else CropBox, else the page's own original MediaBox (nothing more
+// specific is known, so the whole page is taken as the trim). An override (SetTrim)
+// replaces the detected trim box with one of the wanted size, centered on the same spot,
+// for files whose own boxes do not match the real, physical trim.
+func (r *PdfReader) resolveTrimBox(num int) (*model.PdfRectangle, error) {
 	tbox, err := r.pg.GetBox("TrimBox")
 	if err != nil {
 		cbox, err := r.pg.GetBox("CropBox")
@@ -74,19 +72,56 @@ func (r *PdfReader) AdjustMediaBox(num int) error {
 		} else {
 			mediabox, ok := r.orig[num]
 			if !ok {
-				return errors.New("No mediabox")
+				return nil, errors.New("No mediabox")
 			}
 			tbox = &mediabox
 		}
 	}
-	// an override replaces the detected trim box with one of the wanted size, centered
-	// on the same spot, for files whose own boxes do not match the real, physical trim
 	if r.tw > 0 && r.th > 0 {
 		cx, cy := (tbox.Llx+tbox.Urx)/2, (tbox.Lly+tbox.Ury)/2
 		tbox = &model.PdfRectangle{
 			Llx: cx - r.tw/2, Urx: cx + r.tw/2,
 			Lly: cy - r.th/2, Ury: cy + r.th/2,
 		}
+	}
+	return tbox, nil
+}
+
+// SuggestedBleed gives the bleed the page itself suggests, per axis: from its own BleedBox
+// if the file declares one (BleedBox margin past TrimBox), else from how far its original,
+// undeclared content already extends past the trim edge. It takes the smaller of the two
+// opposite margins on each axis, so the suggestion never claims more bleed than the
+// tighter side actually has - using the larger side would mean content on the tighter side
+// gets expanded past where real artwork exists. 0 means the file suggests no usable bleed
+// on that axis.
+func (r *PdfReader) SuggestedBleed(num int) (dx, dy float64, err error) {
+	if r.pg == nil {
+		return 0, 0, errors.New("No page. Need to call GetPage(num) before")
+	}
+	tbox, err := r.resolveTrimBox(num)
+	if err != nil {
+		return 0, 0, err
+	}
+	bbox, err := r.pg.GetBox("BleedBox")
+	if err != nil {
+		orig, ok := r.orig[num]
+		if !ok {
+			return 0, 0, errors.New("No mediabox")
+		}
+		bbox = &orig
+	}
+	dx = min(tbox.Llx-bbox.Llx, bbox.Urx-tbox.Urx)
+	dy = min(tbox.Lly-bbox.Lly, bbox.Ury-tbox.Ury)
+	return max(dx, 0), max(dy, 0), nil
+}
+
+func (r *PdfReader) AdjustMediaBox(num int) error {
+	if r.pg == nil {
+		return errors.New("No page. Need to call GetPage(num) before")
+	}
+	tbox, err := r.resolveTrimBox(num)
+	if err != nil {
+		return err
 	}
 	r.pg.TrimBox = tbox
 

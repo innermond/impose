@@ -368,6 +368,7 @@ func (u *ui) applyMode() {
 		pages.Items = []*widget.FormItem{item("Pages", u.cached("pages", &s.Pages, "all, ex: 1-8"))}
 		flip.Items = []*widget.FormItem{
 			item("Creep", u.cached("creep", &s.Creep, "0, up to the bleed")),
+			item("Thickness", u.cached("thickness", &s.Thickness, "0, one sheet's paper thickness")),
 			item("Back sheets", container.NewHBox(u.cachedCheck("flip", "Flip", &s.Flip), u.cachedCheck("reverse", "Reverse", &s.Reverse))),
 			item("Turn face sheets", u.cached("turn", &s.Turn, "degrees, ex: 180")),
 			item("", u.cachedCheck("padblank", "Add blank pages to reach a multiple of 4", &s.PadBlank)),

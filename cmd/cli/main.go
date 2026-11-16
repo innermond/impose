@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/innermond/impose"
+	"github.com/unidoc/unipdf/v3/creator"
 )
 
 func main() {
@@ -54,7 +55,7 @@ func main() {
 	src, err := impose.OpenSource(f)
 	fatal(err)
 
-	opts := options()
+	opts := options(src)
 
 	err = impose.Run(context.Background(), opts, src, os.Stdout, func(num int) {
 		if verbosity > 1 {
@@ -68,7 +69,7 @@ func main() {
 }
 
 // options gathers what the command line asked for
-func options() impose.Options {
+func options(src *impose.Source) impose.Options {
 	o := impose.DefaultOptions()
 	o.Mode = impose.ModeGrid
 	if repeat {
@@ -93,6 +94,7 @@ func options() impose.Options {
 	o.Duplex, o.Flip, o.Reverse = duplex, flip, reverse
 	o.Weld, o.Turn = weld, turn
 	o.Creep = creep
+	o.Thickness = thickness
 	o.PadBlank = padblank
 
 	o.Width, o.Height = width, height
@@ -102,6 +104,14 @@ func options() impose.Options {
 	o.Angle = angle
 
 	o.Bleedx, o.Bleedy = bleedx, bleedy
+	if !seen["bleed"] && !seen["bleedx"] && !seen["bleedy"] {
+		if sx, sy, err := src.SuggestedBleed(trimw, trimh); err == nil {
+			o.Bleedx, o.Bleedy = sx, sy
+			if verbosity > 0 {
+				log.Printf("suggested bleed %.2f x %.2f mm\n", sx/creator.PPMM, sy/creator.PPMM)
+			}
+		}
+	}
 	o.MergeBleed = mergebleed
 	o.TrimWidth, o.TrimHeight = trimw, trimh
 	o.Offx, o.Offy = offx, offy
